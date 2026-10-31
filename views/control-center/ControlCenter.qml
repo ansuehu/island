@@ -85,6 +85,31 @@ ColumnLayout {
       font.letterSpacing: -0.2
     }
     Item { Layout.fillWidth: true }
+    // The system tray, with each app's open, close and menu options.
+    Rectangle {
+      visible: cc.host.addons.isEnabled("tray")
+      scale: trayMouse.pressed ? 0.92 : 1
+      Behavior on scale { MotionAnimation { theme: cc.host.theme; pace: trayMouse.pressed ? "press" : "standard" } }
+      Layout.preferredWidth: 28
+      Layout.preferredHeight: 28
+      radius: 14
+      color: trayMouse.containsMouse ? cc.well : cc.card
+      Tooltip { theme: cc.host.theme; text: "System Tray" }
+      Text {
+        anchors.centerIn: parent
+        text: "󰀻"
+        color: cc.text
+        font.family: cc.iconFont
+        font.pixelSize: cc.host.theme.px(15)
+      }
+      MouseArea {
+        id: trayMouse
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: cc.host.view = "tray"
+      }
+    }
     Rectangle {
       scale: editMouse.pressed ? 0.92 : 1
       Behavior on scale { MotionAnimation { theme: cc.host.theme; pace: editMouse.pressed ? "press" : "standard" } }
