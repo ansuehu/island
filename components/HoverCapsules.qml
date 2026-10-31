@@ -27,6 +27,8 @@ Item {
   readonly property var theme: host.theme
   readonly property var settings: host.settings
   readonly property real gap: 6
+  // The resting island is drawn at the pill-size setting; the capsules match.
+  readonly property real ps: host.settings.pillScale
   // The island's height, up to a live activity's, so they match the clock
   // and those pills and stay capsules beside the taller ones.
   readonly property real capsuleHeight: Math.min(island.height, host.pillHeight)
@@ -219,8 +221,10 @@ Item {
     id: leftRow
     layoutDirection: Qt.RightToLeft
     spacing: capsules.gap
-    x: capsules.island.x - capsules.gap - width
+    x: capsules.island.x + capsules.island.width * (1 - capsules.ps) / 2 - capsules.gap * capsules.ps - width
     y: capsules.capsuleY
+    scale: capsules.ps
+    transformOrigin: Item.TopRight
     HoverHandler { id: leftHover }
 
     // Laid right to left: the one by the island first.
@@ -407,8 +411,10 @@ Item {
   Row {
     id: rightRow
     spacing: capsules.gap
-    x: capsules.island.x + capsules.island.width + capsules.gap
+    x: capsules.island.x + capsules.island.width * (1 + capsules.ps) / 2 + capsules.gap * capsules.ps
     y: capsules.capsuleY
+    scale: capsules.ps
+    transformOrigin: Item.TopLeft
     HoverHandler { id: rightHover }
 
     Capsule {
