@@ -14,7 +14,7 @@ Item {
   implicitWidth: 400
   implicitHeight: list.implicitHeight
 
-  onActiveChanged: if (active) Qt.callLater(function() { view.forceActiveFocus() })
+  onActiveChanged: if (active) Qt.callLater(function() { if (view) view.forceActiveFocus() })
   Keys.onEscapePressed: host.view = "rest"
 
   function stateText(s) {
