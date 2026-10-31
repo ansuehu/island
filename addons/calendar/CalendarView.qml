@@ -853,16 +853,21 @@ Item {
       // Read the calendars again now; it spins while they load.
       Text {
         id: syncGlyph
+        Tooltip {
+          theme: view.theme
+          text: view.calendar.unsynced > 0 ? "Waiting for TickTick to publish " + view.calendar.unsynced + (view.calendar.unsynced === 1 ? " change" : " changes")
+            : view.calendar.syncing ? "Syncing…" : "Sync now"
+        }
         width: 26
         horizontalAlignment: Text.AlignHCenter
         text: "󰑐"
-        color: syncMouse.containsMouse || view.calendar.fetching ? view.ink : view.inkMuted
+        color: syncMouse.containsMouse || view.calendar.syncing ? view.ink : view.inkMuted
         font.family: view.theme.fontFamily
         font.pixelSize: view.theme.px(14)
         RotationAnimator on rotation {
           from: 0; to: 360; duration: 900
           loops: Animation.Infinite
-          running: view.calendar.fetching
+          running: view.calendar.syncing
           onRunningChanged: if (!running) syncGlyph.rotation = 0
         }
         MouseArea {

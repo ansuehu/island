@@ -294,17 +294,29 @@ Addon {
       calendarAddon.runNextTask()
     }
   }
-  // Read the feeds every 15 s for two minutes, until a write shows there.
-  function catchUp() { catchUpTimer.tries = 0; catchUpTimer.restart() }
+  // Writes the feeds don't show yet: tasks added here not in them, and
+  // tasks completed or deleted here still in them. TickTick's feed lags a
+  // write by a minute or more, so until these are 0 the calendar isn't in
+  // sync, and it reads the feeds every 15 s.
+  readonly property int unsynced: {
+    var waiting = 0, all = []
+    for (var i = 0; i < urls.length; i++) all = all.concat(read[urls[i]] || [])
+    for (var k = 0; k < pending.length; k++) {
+      var p = pending[k]
+      if (!all.some(function(e) { return e.title === p.title && sameDay(new Date(e.start), new Date(p.start)) })) waiting++
+    }
+    for (var key in doneTasks)
+      if (all.some(function(e) { return e.taskId && e.taskId + "|" + e.start === key })) waiting++
+    return waiting
+  }
+  // Syncing: a write on its way to TickTick, or one the feeds don't show yet.
+  readonly property bool syncing: fetching || taskRunner.running || taskQueue.length > 0 || unsynced > 0
+  function catchUp() { if (!fetching) fetch() }
   Timer {
-    id: catchUpTimer
     interval: 15000
     repeat: true
-    property int tries: 0
-    onTriggered: {
-      calendarAddon.retry()
-      if (++tries >= 8) stop()
-    }
+    running: calendarAddon.unsynced > 0 && !taskRunner.running
+    onTriggered: calendarAddon.retry()
   }
   Timer {
     interval: 60000
