@@ -152,13 +152,14 @@ ColumnLayout {
         options: [
           { label: "󰁌  Expand island (Glance)", short: "Expand", value: "expand" },
           { label: "󰂚  Flanking capsules", short: "Capsules", value: "capsules" },
+          { label: "󰂚  Capsules, always shown", short: "Always", value: "always" },
           { label: "󰅖  Disabled", short: "Disabled", value: "none" }
         ]
         value: page.view.settings.hoverStyle || (page.view.settings.hoverCapsules ? "capsules" : page.view.settings.hoverExpand ? "expand" : "none")
         onPicked: function(v) {
           page.view.settings.hoverStyle = v
           page.view.settings.hoverExpand = (v === "expand")
-          page.view.settings.hoverCapsules = (v === "capsules")
+          page.view.settings.hoverCapsules = (v === "capsules" || v === "always")
         }
       }
     }
@@ -290,7 +291,7 @@ ColumnLayout {
   SettingsGroup {
     view: page.view
     title: "Capsules on hover"
-    visible: (page.view.settings.hoverStyle || (page.view.settings.hoverCapsules ? "capsules" : page.view.settings.hoverExpand ? "expand" : "none")) === "capsules"
+    visible: (page.view.settings.hoverStyle || (page.view.settings.hoverCapsules ? "capsules" : page.view.settings.hoverExpand ? "expand" : "none")).indexOf("capsules") === 0 || (page.view.settings.hoverStyle === "always")
     SettingsRow {
       view: page.view
       icon: "󰀻"

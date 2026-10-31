@@ -429,6 +429,8 @@ Item {
   // A tray app whose own menu the tray view opens straight to (see
   // TrayList), set by a right click on it in the hover capsules.
   property var trayMenuFor: null
+  // Capsules beside the pill, on hover or ("always") all the time.
+  readonly property bool capsuleMode: hoverMode === "capsules" || hoverMode === "always"
   readonly property string hoverMode: settings.hoverStyle ? settings.hoverStyle : settings.hoverCapsules ? "capsules" : settings.hoverExpand ? "expand" : "none"
 
   function toggleView(name) {
@@ -660,7 +662,7 @@ Item {
           id: hoverCapsules
           host: root
           island: island
-          shown: (root.hoverMode === "capsules") && island.capsulesShown && !window.islandHidden
+          shown: root.capsuleMode && island.capsulesShown && !window.islandHidden
           anchors.fill: parent
           // Under the island, so the capsules can start tucked beneath it.
           z: -1
@@ -707,7 +709,7 @@ Item {
           Timer {
             id: capsulesEnterTimer
             interval: root.theme.scaled(80)
-            onTriggered: if (root.hoverMode === "capsules" && root.resting) island.capsulesActive = true
+            onTriggered: if (root.capsuleMode && root.resting) island.capsulesActive = true
           }
           onCapsulesHoveredChanged: {
             if (capsulesHovered) {
@@ -733,7 +735,7 @@ Item {
           }
           readonly property bool hasNonMediaActivePill: pills.active !== null && pills.active !== mediaPillItem
           readonly property bool isGlanceExpanded: island.glanceActive && (root.hoverMode === "expand") && island.hasGlanceItems && root.restingFree && !root.downloadPill && !island.hasNonMediaActivePill
-          readonly property bool capsulesShown: island.capsulesActive && (root.hoverMode === "capsules") && (root.resting || root.volumePill)
+          readonly property bool capsulesShown: (island.capsulesActive || root.hoverMode === "always") && root.capsuleMode && (root.resting || root.volumePill)
           // How much wider than a bare time the chosen clock format is; the
           // resting pill and the pills that keep the clock in the middle grow by it.
           readonly property real clockExtra: Math.max(0, Math.ceil(clockLabel.advanceWidth || clockMetrics.advanceWidth) + 56 - 100)
