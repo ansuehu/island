@@ -1,6 +1,8 @@
 import QtQuick
 import Quickshell.Io
 import "../../components"
+// The TickTick plugin's own quick-add grammar (dates, times, #tags, !priority).
+import "../../../io.github.sotoaugusto.ticktick/Model.js" as TTModel
 
 // The calendar view, as Apple's widget: on the left the selected day's
 // weekday, date, and events; on the right its month, Monday first, its weeks
@@ -593,7 +595,7 @@ Item {
           id: titleField
           width: parent.width
           host: view.host
-          placeholder: "Task title…"
+          placeholder: "Dinner tomorrow 7pm #home !1"
           onKeyPressed: function(event) {
             if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
               event.accepted = true
@@ -604,7 +606,17 @@ Item {
             }
           }
         }
-        Item { width: 1; height: 10 }
+        Text {
+          width: parent.width
+          topPadding: 6
+          text: TTModel.quickAddPreview(view.parsedTask(titleField.text), false)
+          elide: Text.ElideRight
+          color: view.inkMuted
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(11)
+          font.weight: Font.Medium
+        }
+        Item { width: 1; height: 8 }
         Rectangle {
           width: addLabel.implicitWidth + 28
           height: 30
@@ -664,9 +676,8 @@ Item {
   // on success and a plain message on failure.
   Process {
     id: adder
-    property string title: ""
-    property string due: ""
-    command: [view.tickTickCli, "add", adder.title, "--due", adder.due]
+    property var args: []
+    command: [view.tickTickCli].concat(adder.args)
     stderr: StdioCollector { id: adderError; waitForEnd: true }
     onExited: function(code) {
       if (code !== 0) {
@@ -692,13 +703,23 @@ Item {
     onTriggered: view.calendar.retry()
   }
 
+  // The TickTick plugin's parse of the line; a line naming no day lands on
+  // the selected one.
+  function parsedTask(text) {
+    var parsed = TTModel.parseQuickAdd(String(text || ""))
+    if (!parsed.dueGiven) parsed.due = view.stamp(view.calendar.selected)
+    return parsed
+  }
   function addTask(text) {
-    var title = String(text || "").trim()
-    if (title === "") { view.composeError = "Type a title first"; return }
+    var parsed = view.parsedTask(text)
+    if (parsed.title === "") { view.composeError = "Type a title first"; return }
     if (adder.running) return
     view.composeError = ""
-    adder.title = title
-    adder.due = view.stamp(view.calendar.selected)
+    var args = ["add", parsed.title, "--due", parsed.due]
+    if (parsed.time) args = args.concat(["--time", parsed.time])
+    if (parsed.priority > 0) args = args.concat(["--priority", String(parsed.priority)])
+    if (parsed.tags.length > 0) args = args.concat(["--tags", parsed.tags.join(",")])
+    adder.args = args
     adder.running = true
   }
 
