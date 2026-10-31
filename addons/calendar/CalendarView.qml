@@ -108,6 +108,12 @@ Item {
   // new day.
   Connections {
     target: view.calendar
+    // A background TickTick write that failed says so where you are.
+    function onTaskErrorChanged() {
+      if (view.calendar.taskError === "") return
+      view.flash = view.calendar.taskError
+      flashTimer.restart()
+    }
     function onSelectedChanged() {
       view.preview = null
       view.detail = null
@@ -170,6 +176,10 @@ Item {
     if (event.url) return event.url
     var found = String(event.description || "").match(/https?:\/\/[^\s<>"]+/)
     if (found) return found[0]
+    // A TickTick task: its page by id, or (one just added, not in the feed
+    // yet) the app itself.
+    if (event.taskId) return "https://ticktick.com/webapp/#p/inbox/tasks/" + event.taskId
+    if (event.calendar === "TickTick") return "https://ticktick.com/webapp/"
     return view.googleDay(new Date(event.start))
   }
   function linkLabel(event) {
@@ -680,12 +690,11 @@ Item {
           width: addLabel.implicitWidth + 28
           height: 30
           radius: 15
-          color: adder.running ? view.theme.withAlpha(view.accent, 0.6)
-            : addTaskMouse.containsMouse ? Qt.lighter(view.accent, 1.1) : view.accent
+          color: addTaskMouse.containsMouse ? Qt.lighter(view.accent, 1.1) : view.accent
           Text {
             id: addLabel
             anchors.centerIn: parent
-            text: adder.running ? "Adding…" : view.tickTick ? "Add task" : "Add event"
+            text: view.tickTick ? "Add task" : "Add event"
             color: view.theme.accentText
             font.family: view.theme.textFontFamily
             font.pixelSize: view.theme.px(12)
@@ -694,7 +703,6 @@ Item {
           MouseArea {
             id: addTaskMouse
             anchors.fill: parent
-            enabled: !adder.running
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: view.addTask(titleField.text)
@@ -732,44 +740,10 @@ Item {
     }
   }
 
-  // The write itself, through the TickTick plugin's CLI. Its answer is JSON
-  // on success and a plain message on failure.
-  Process {
-    id: adder
-    property var args: []
-    property var parsed: null
-    command: [view.tickTickCli].concat(adder.args)
-    stderr: StdioCollector { id: adderError; waitForEnd: true }
-    onExited: function(code) {
-      if (code !== 0) {
-        var message = String(adderError.text || "").trim()
-        view.composeError = message !== "" ? message : "Couldn't add the task"
-        return
-      }
-      view.composing = false
-      if (adder.parsed) view.calendar.addPending(adder.parsed.title, adder.parsed.due, adder.parsed.time)
-      view.flash = "Added to TickTick"
-      flashTimer.restart()
-      // TickTick's feed trails a write by up to a minute; read it every 15 s
-      // until the task shows up or two minutes pass.
-      refreshTimer.tries = 0
-      refreshTimer.restart()
-    }
-  }
   Timer {
     id: flashTimer
     interval: 2600
     onTriggered: view.flash = ""
-  }
-  Timer {
-    id: refreshTimer
-    interval: 15000
-    repeat: true
-    property int tries: 0
-    onTriggered: {
-      view.calendar.retry()
-      if (++tries >= 8) stop()
-    }
   }
 
   // The TickTick plugin's parse of the line; a line naming no day lands on
@@ -786,19 +760,22 @@ Item {
     }
     return parsed
   }
+  // Local first: the task is on the calendar and the composer closed at
+  // once; the write (and TickTick's sync, which can take seconds) runs in
+  // the background, and a failure takes the task back off and says why.
   function addTask(text) {
     if (!view.tickTick) { Qt.openUrlExternally(view.googleCompose(view.calendar.selected, text)); return }
     var parsed = view.parsedTask(text)
     if (parsed.title === "") { view.composeError = "Type a title first"; return }
-    if (adder.running) return
     view.composeError = ""
     var args = ["add", parsed.title, "--due", parsed.due]
     if (parsed.time) args = args.concat(["--time", parsed.time])
     if (parsed.priority > 0) args = args.concat(["--priority", String(parsed.priority)])
     if (parsed.tags.length > 0) args = args.concat(["--tags", parsed.tags.join(",")])
-    adder.args = args
-    adder.parsed = parsed
-    adder.running = true
+    view.calendar.addTaskLocally(parsed.title, parsed.due, parsed.time, args)
+    view.composing = false
+    view.flash = "Added · syncing with TickTick"
+    flashTimer.restart()
   }
 
   // ---------- The month ----------
