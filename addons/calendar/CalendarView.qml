@@ -1,8 +1,6 @@
 import QtQuick
 import Quickshell.Io
 import "../../components"
-// The TickTick plugin's own quick-add grammar (dates, times, #tags, !priority).
-import "../../../io.github.sotoaugusto.ticktick/Model.js" as TTModel
 
 // The calendar view, as Apple's widget: on the left the selected day's
 // weekday, date, and events; on the right its month, Monday first, its weeks
@@ -66,6 +64,11 @@ Item {
   // the island makes, so a task lands in the app the bar already uses.
   readonly property string tickTickCli: view.host.home
     + "/.config/omarchy/plugins/io.github.sotoaugusto.ticktick/bin/omarchy-ticktick"
+  // The TickTick plugin's quick-add grammar (dates, times, #tags, !priority),
+  // when that plugin is installed; without it quick add makes Google events.
+  readonly property alias grammar: grammarLoader
+  readonly property bool tickTick: grammarLoader.status === Loader.Ready
+  Loader { id: grammarLoader; source: "TickTickGrammar.qml" }
 
   implicitHeight: Math.max(month.y + month.height, left.implicitHeight)
 
@@ -576,7 +579,7 @@ Item {
         }
         Item { width: 1; height: 10 }
         Text {
-          text: "NEW TASK"
+          text: view.tickTick ? "NEW TASK" : "NEW EVENT"
           color: view.ink
           font.family: view.theme.textFontFamily
           font.pixelSize: view.theme.px(15)
@@ -584,7 +587,7 @@ Item {
         }
         Text {
           topPadding: 1
-          text: "TickTick · " + view.shortDate(view.calendar.selected)
+          text: (view.tickTick ? "TickTick · " : "Google Calendar · ") + view.shortDate(view.calendar.selected)
           color: view.inkMuted
           font.family: view.theme.textFontFamily
           font.pixelSize: view.theme.px(12)
@@ -595,7 +598,7 @@ Item {
           id: titleField
           width: parent.width
           host: view.host
-          placeholder: "Dinner tomorrow 7pm #home !1"
+          placeholder: view.tickTick ? "Dinner tomorrow 7pm #home !1" : "Event title…"
           onKeyPressed: function(event) {
             if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
               event.accepted = true
@@ -609,7 +612,8 @@ Item {
         Text {
           width: parent.width
           topPadding: 6
-          text: TTModel.quickAddPreview(view.parsedTask(titleField.text), false)
+          text: view.tickTick ? view.grammar.item.preview(view.parsedTask(titleField.text)) : ""
+          visible: text !== ""
           elide: Text.ElideRight
           color: view.inkMuted
           font.family: view.theme.textFontFamily
@@ -626,7 +630,7 @@ Item {
           Text {
             id: addLabel
             anchors.centerIn: parent
-            text: adder.running ? "Adding…" : "Add task"
+            text: adder.running ? "Adding…" : view.tickTick ? "Add task" : "Add event"
             color: view.theme.accentText
             font.family: view.theme.textFontFamily
             font.pixelSize: view.theme.px(12)
@@ -642,6 +646,7 @@ Item {
           }
         }
         Text {
+          visible: view.tickTick
           topPadding: 8
           text: "or a Google Calendar event"
           color: googleMouse.containsMouse ? view.ink : view.inkMuted
@@ -713,11 +718,13 @@ Item {
   // The TickTick plugin's parse of the line; a line naming no day lands on
   // the selected one.
   function parsedTask(text) {
-    var parsed = TTModel.parseQuickAdd(String(text || ""))
+    var parsed = view.grammar.item ? view.grammar.item.parse(text)
+      : { title: String(text || "").trim(), due: "", dueGiven: false, time: "", priority: 0, tags: [] }
     if (!parsed.dueGiven) parsed.due = view.stamp(view.calendar.selected)
     return parsed
   }
   function addTask(text) {
+    if (!view.tickTick) { Qt.openUrlExternally(view.googleCompose(view.calendar.selected, text)); return }
     var parsed = view.parsedTask(text)
     if (parsed.title === "") { view.composeError = "Type a title first"; return }
     if (adder.running) return
