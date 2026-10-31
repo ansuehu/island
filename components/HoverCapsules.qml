@@ -33,8 +33,10 @@ Item {
   // and those pills and stay capsules beside the taller ones.
   readonly property real capsuleHeight: Math.min(island.height, host.pillHeight)
   readonly property bool notch: settings.notch
-  // Centred on the island, or hanging from the top edge with the notch.
-  readonly property real capsuleY: notch ? island.y : island.y + (island.height - capsuleHeight) / 2
+  // Level with the top of the island: beside a resting pill that's its
+  // middle, and they stay put when a live activity grows taller (a call
+  // expanding on hover) instead of sliding down with its middle.
+  readonly property real capsuleY: island.y
   // One size for every icon and one for every label, across all capsules.
   readonly property int glyphSize: theme.px(18)
   readonly property int traySize: 16
