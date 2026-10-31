@@ -332,6 +332,17 @@ Addon {
       if (all.some(function(e) { return e.taskId && e.taskId + "|" + e.start === key })) waiting++
     return waiting
   }
+  // The feeds the last read couldn't get, by name, for the sync button's "!".
+  property var failedFeeds: []
+  function feedName(url) {
+    var own = read[url] || []
+    if (own.length && own[0].calendar) return own[0].calendar
+    var m = /ical\/([^\/]+)\//.exec(url)
+    return m ? decodeURIComponent(m[1]) : /ticktick/.test(url) ? "TickTick" : url
+  }
+  // A moment of "synced" once everything's read and every write is in.
+  signal syncedClean()
+  onSyncingChanged: if (!syncing && failedFeeds.length === 0 && taskError === "") syncedClean()
   // Syncing: a write on its way to TickTick, or one the feeds don't show yet.
   readonly property bool syncing: fetching || taskRunner.running || taskQueue.length > 0 || unsynced > 0
   function catchUp() { if (!fetching) fetch() }
@@ -364,7 +375,7 @@ Addon {
       waitForEnd: true
       onStreamFinished: {
         if (fetcher.urls.join(" ") !== calendarAddon.urls.join(" ")) return
-        var next = {}, good = 0, failed = 0
+        var next = {}, good = 0, failed = 0, failedNames = []
         text.split("\x1e").forEach(function(part) {
           var m = part.match(/^(\d+)\n([\s\S]*)\x1f(\d+)\n?$/)
           var url = m ? fetcher.urls[Number(m[1])] : ""
@@ -374,7 +385,7 @@ Addon {
             try { parsed = calendarAddon.parse(m[2]) } catch (e) { console.warn("calendar: parse failed", url.slice(0, 60), e) }
           } else if (m) console.warn("calendar: fetch failed", url.slice(0, 60), "curl", m[3])
           if (!m) return
-          if (!parsed) failed++
+          if (!parsed) { failed++; failedNames.push(calendarAddon.feedName(url)) }
           if (parsed) {
             next[url] = parsed
             good++
@@ -385,6 +396,7 @@ Addon {
         calendarAddon.read = next
         // A slow or dropped feed is tried again in a minute, not in five.
         if (failed > 0) retrySoon.restart()
+        calendarAddon.failedFeeds = failedNames
         if (good > 0) {
           calendarAddon.fetchedAt = Date.now()
           cacheFile.setText(JSON.stringify({ version: 1, savedAt: Date.now(), read: next }))
