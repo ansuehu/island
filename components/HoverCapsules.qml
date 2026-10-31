@@ -52,11 +52,22 @@ Item {
 
   // --- Next event: today's, from an hour before it starts until it ends ---
   readonly property var calendar: host.addons.isEnabled("calendar") ? host.addons.root("calendar") : null
-  readonly property var nextEvent: calendar ? calendar.nextToday : null
+  // How far ahead it looks (Settings → General): within the hour, today,
+  // or the next event on any day.
+  readonly property string eventRange: settings.capsuleEventRange || "hour"
+  readonly property var nextEvent: !calendar ? null : eventRange === "any" ? calendar.nextAny : calendar.nextToday
   readonly property real eventIn: nextEvent ? nextEvent.start - host.clockDate.getTime() : 0
-  readonly property string eventWhen: eventIn <= 0 ? "now"
-    : "in " + Math.max(1, Math.round(eventIn / 60000)) + " min"
-  readonly property bool showEvent: settings.capsuleEvent && !!nextEvent && eventIn <= 60 * 60000
+  readonly property string eventWhen: {
+    if (eventIn <= 0) return "now"
+    if (eventIn <= 60 * 60000) return "in " + Math.max(1, Math.round(eventIn / 60000)) + " min"
+    var at = new Date(nextEvent.start), today = host.clockDate
+    var time = calendar.timeText(nextEvent.start)
+    if (at.toDateString() === today.toDateString()) return time
+    var tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+    if (at.toDateString() === tomorrow.toDateString()) return "Tomorrow " + time
+    return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][at.getDay()] + " " + at.getDate() + " · " + time
+  }
+  readonly property bool showEvent: settings.capsuleEvent && !!nextEvent && (eventRange !== "hour" || eventIn <= 60 * 60000)
 
   // --- Tray apps, straight from the system tray, and pending updates ---
   readonly property var trayItems: settings.capsuleTray

@@ -39,6 +39,7 @@ Item {
       property bool capsuleTray: true
       property bool capsuleSystem: true
       property bool capsuleEvent: false
+      property string capsuleEventRange: "hour"
       property bool capsuleWeather: false
       property bool capsuleNotifications: true
       property bool capsuleMedia: false

@@ -130,6 +130,18 @@ Addon {
     return left[0] || null
   }
 
+  // The next timed event not yet over, on any day ahead (within the year
+  // the feeds are read for), or null.
+  readonly property var nextAny: {
+    var now = host.clockDate.getTime(), best = null
+    for (var i = 0; i < events.length; i++) {
+      var e = events[i]
+      if (e.allDay || e.end <= now) continue
+      if (!best || e.start < best.start) best = e
+    }
+    return best
+  }
+
   // "15:00", or "3:00 PM" without the 24-hour clock.
   function timeText(ms) {
     var d = new Date(ms)

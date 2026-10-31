@@ -404,11 +404,25 @@ ColumnLayout {
       icon: "󰃭"
       iconTint: page.system.red
       label: "Next event"
-      detail: "When one starts within the hour"
+      detail: "Today's next event, or the next one ahead"
       SettingsSwitch {
         view: page.view
         checked: !!page.view.settings.capsuleEvent
         onToggled: function(on) { page.view.settings.capsuleEvent = on }
+      }
+    }
+    SettingsRow {
+      view: page.view
+      icon: "󰔟"
+      iconTint: page.system.red
+      label: "Next event from"
+      detail: "How far ahead the event capsule looks"
+      visible: !!page.view.settings.capsuleEvent
+      SettingsSegmented {
+        view: page.view
+        options: [{ label: "1 hour", value: "hour" }, { label: "Today", value: "today" }, { label: "Any day", value: "any" }]
+        value: page.view.settings.capsuleEventRange || "hour"
+        onPicked: function(v) { page.view.settings.capsuleEventRange = v }
       }
     }
     SettingsRow {
