@@ -16,6 +16,13 @@ import ".."
 Addon {
   id: agentsAddon
   pill: Component { AgentsPill { agents: agentsAddon } }
+  // Clicking the pill expands it into the sessions at work (see AgentsView).
+  views: [{ name: "agents", width: 440, padding: 20, component: agentsView }]
+  Component {
+    id: agentsView
+    AgentsView { agents: agentsAddon; active: agentsAddon.host.view === "agents" }
+  }
+  function pillClicked() { host.view = "agents" }
   ongoing: working || finished
   pillWidth: 236
   // Claude's orange, or the theme's accent when live activities aren't

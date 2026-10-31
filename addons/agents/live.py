@@ -5,7 +5,7 @@ Follows the transcripts Claude Code writes as it goes (<config>/projects/
 <project>/<session>.jsonl, for ~/.claude and any ~/.claude-* profile) and
 prints one JSON line whenever what's worth showing changes:
 
-  {"sessions": [{"id", "state", "startedAt", "doneAt"}]}
+  {"sessions": [{"id", "state", "startedAt", "doneAt", "cwd", "prompt", "tool"}]}
 
 newest first. `state` is "thinking", "tool" (a step is running), "asking"
 (it's waiting on your answer to a question or its plan), or "done"
@@ -55,6 +55,9 @@ class Session:
         self.started = 0
         self.done_at = 0
         self.updated = 0
+        self.cwd = ""          # the project it works in
+        self.prompt = ""       # the turn's prompt, shortened
+        self.tool = ""         # the step running, by tool name
 
     def read(self):
         try:
@@ -88,6 +91,7 @@ class Session:
             return
         stamp = iso_ms(entry.get("timestamp"))
         self.updated = max(self.updated, stamp)
+        self.cwd = entry.get("cwd") or self.cwd
         content = (entry.get("message") or {}).get("content")
         if kind == "user":
             if isinstance(content, str) or not any(b.get("type") == "tool_result" for b in content or []):
@@ -98,6 +102,7 @@ class Session:
                 elif not entry.get("isMeta") and text.strip() and not text.lstrip().startswith("<"):
                     # A new turn.
                     self.running, self.state, self.started, self.done_at = {}, "thinking", stamp, 0
+                    self.prompt, self.tool = " ".join(text.split())[:160], ""
                 return
             for block in content:
                 if block.get("type") == "tool_result":
@@ -108,6 +113,7 @@ class Session:
         for block in content or []:
             if block.get("type") == "tool_use":
                 self.running[block.get("id")] = block.get("name") in ASKING_TOOLS
+                self.tool = block.get("name") or ""
                 self.started = self.started or stamp
         if (entry.get("message") or {}).get("stop_reason") == "end_turn":
             self.finish(stamp)
@@ -135,7 +141,8 @@ class Session:
         return now - max(self.updated, mtime_ms(self.path)) < idle * 1000
 
     def snapshot(self):
-        return {"id": self.id, "state": self.state, "startedAt": self.started, "doneAt": self.done_at}
+        return {"id": self.id, "state": self.state, "startedAt": self.started, "doneAt": self.done_at,
+                "cwd": self.cwd, "prompt": self.prompt, "tool": self.tool if self.running else ""}
 
 
 def mtime_ms(path):
