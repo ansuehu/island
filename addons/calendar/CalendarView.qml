@@ -688,7 +688,9 @@ Item {
       view.composing = false
       view.flash = "Added to TickTick"
       flashTimer.restart()
-      // The feed lags the write by a moment; read it again soon.
+      // TickTick's feed trails a write by up to a minute; read it every 15 s
+      // until the task shows up or two minutes pass.
+      refreshTimer.tries = 0
       refreshTimer.restart()
     }
   }
@@ -699,8 +701,13 @@ Item {
   }
   Timer {
     id: refreshTimer
-    interval: 5000
-    onTriggered: view.calendar.retry()
+    interval: 15000
+    repeat: true
+    property int tries: 0
+    onTriggered: {
+      view.calendar.retry()
+      if (++tries >= 8) stop()
+    }
   }
 
   // The TickTick plugin's parse of the line; a line naming no day lands on
