@@ -218,6 +218,27 @@ ColumnLayout {
         var halfWidth = (fullWidth - gap) / 2
         var rowY = inset
         var halfUsed = false
+        if (layout.center.small) {
+          // Four to a row; a wide card takes a row of its own.
+          var cols = 4, col = 0
+          var colWidth = (fullWidth - (cols - 1) * gap) / cols
+          for (var k = 0; k < layout.visibleControlKeys.length; k++) {
+            var smallKey = layout.visibleControlKeys[k]
+            if (layout.controls.controlWide(smallKey)) {
+              if (col > 0) { rowY += tileHeight + gap; col = 0 }
+              var wideHeight = layout.center.sectionHeight
+              if (smallKey === "sound") wideHeight += layout.outputsExtra
+              if (smallKey === "microphone") wideHeight += layout.inputsExtra
+              result[smallKey] = { x: inset, y: rowY, width: fullWidth, height: wideHeight }
+              rowY += wideHeight + gap
+            } else {
+              result[smallKey] = { x: inset + col * (colWidth + gap), y: rowY, width: colWidth, height: tileHeight }
+              if (++col === cols) { rowY += tileHeight + gap; col = 0 }
+            }
+          }
+          result.height = Math.max(0, rowY + (col > 0 ? tileHeight : rowY > inset ? -gap : 0) + inset)
+          return result
+        }
         for (var i = 0; i < layout.visibleControlKeys.length; i++) {
           var key = layout.visibleControlKeys[i]
           var wide = layout.controls.controlWide(key)

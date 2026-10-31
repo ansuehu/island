@@ -39,9 +39,9 @@ Rectangle {
 
   Rectangle {
     id: badge
-    anchors.left: parent.left
-    anchors.leftMargin: (t.height - height) / 2
-    anchors.verticalCenter: parent.verticalCenter
+    // Small: centred over the label, as Android's quick settings.
+    x: t.center.small ? (t.width - width) / 2 : (t.height - height) / 2
+    y: t.center.small ? 9 : (t.height - height) / 2
     width: t.badgeSize; height: t.badgeSize; radius: t.badgeSize / 2
     color: t.checked ? center.accent : center.well
     Behavior on color { MotionColorAnimation { theme: center.host.theme } }
@@ -54,7 +54,22 @@ Rectangle {
       font.pixelSize: center.host.theme.px(18)
     }
   }
+  Text {
+    visible: t.center.small
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.bottom: parent.bottom
+    anchors.bottomMargin: 8
+    width: parent.width - 10
+    horizontalAlignment: Text.AlignHCenter
+    text: t.title
+    elide: Text.ElideRight
+    color: center.text
+    font.family: center.host.theme.textFontFamily
+    font.pixelSize: center.host.theme.px(11)
+    font.weight: Font.Medium
+  }
   Column {
+    visible: !t.center.small
     anchors.left: badge.right
     anchors.leftMargin: 9
     anchors.right: parent.right

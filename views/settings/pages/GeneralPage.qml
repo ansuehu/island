@@ -130,6 +130,18 @@ ColumnLayout {
     }
     SettingsRow {
       view: page.view
+      icon: "󰕰"
+      iconTint: page.system.blue
+      label: "Small controls"
+      detail: "Four controls to a row in the control center, icon over label"
+      SettingsSwitch {
+        view: page.view
+        checked: !!page.view.settings.smallControls
+        onToggled: function(on) { page.view.settings.smallControls = on }
+      }
+    }
+    SettingsRow {
+      view: page.view
       icon: "󰘔"
       iconTint: page.system.green
       label: "Top bar"

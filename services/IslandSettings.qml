@@ -51,6 +51,7 @@ Item {
       property string mutedApps: ""
       property bool notch: false
       property bool reserveTop: false
+      property bool smallControls: false
       // What a click on the resting island does, per button (see Island.qml).
       property string leftClick: "activity"
       property string rightClick: "none"
