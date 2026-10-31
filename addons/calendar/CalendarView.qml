@@ -45,6 +45,9 @@ Item {
   property var detail: null
   property bool composing: false
   property bool expanded: false
+  // The composer makes a Google event rather than a TickTick task.
+  property bool composeEvent: false
+  readonly property bool makingEvent: !view.tickTick || view.composeEvent
   // The next seven days as one list (tasks and events), instead of the month.
   property bool agendaMode: false
   // A task's Delete asks once more before it goes.
@@ -660,7 +663,7 @@ Item {
         }
         Item { width: 1; height: 10 }
         Text {
-          text: view.tickTick ? "NEW TASK" : "NEW EVENT"
+          text: view.makingEvent ? "NEW EVENT" : "NEW TASK"
           color: view.ink
           font.family: view.theme.textFontFamily
           font.pixelSize: view.theme.px(15)
@@ -668,18 +671,52 @@ Item {
         }
         Text {
           topPadding: 1
-          text: (view.tickTick ? "TickTick · " : "Google Calendar · ") + view.shortDate(view.calendar.selected)
+          text: (view.makingEvent ? "Google Calendar · " : "TickTick · ") + view.shortDate(view.calendar.selected)
           color: view.inkMuted
           font.family: view.theme.textFontFamily
           font.pixelSize: view.theme.px(12)
           font.weight: Font.Medium
+        }
+        // Task or event, when both can be made here.
+        Item { width: 1; height: 8; visible: kindRow.visible }
+        Row {
+          id: kindRow
+          visible: view.tickTick && view.calendar.googleWritable
+          spacing: 4
+          Repeater {
+            model: [{ label: "Task", event: false }, { label: "Event", event: true }]
+            delegate: Rectangle {
+              required property var modelData
+              readonly property bool picked: view.composeEvent === modelData.event
+              width: kindText.implicitWidth + 20
+              height: 24
+              radius: 12
+              color: picked ? view.accent : kindMouse.containsMouse ? view.theme.fill("strong") : view.theme.fill("raised")
+              Text {
+                id: kindText
+                anchors.centerIn: parent
+                text: modelData.label
+                color: parent.picked ? view.theme.accentText : "#ffffff"
+                font.family: view.theme.textFontFamily
+                font.pixelSize: view.theme.px(11)
+                font.weight: Font.Medium
+              }
+              MouseArea {
+                id: kindMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: { view.composeEvent = modelData.event; titleField.focusInput() }
+              }
+            }
+          }
         }
         Item { width: 1; height: 10 }
         SearchField {
           id: titleField
           width: parent.width
           host: view.host
-          placeholder: view.tickTick ? "Dinner tomorrow 7pm #home !1" : "Event title…"
+          placeholder: view.makingEvent ? (view.tickTick ? "Meeting tomorrow 15:00" : "Event title…") : "Dinner tomorrow 7pm #home !1"
           onKeyPressed: function(event) {
             if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
               event.accepted = true
@@ -710,7 +747,7 @@ Item {
           Text {
             id: addLabel
             anchors.centerIn: parent
-            text: view.tickTick ? "Add task" : "Add event"
+            text: view.makingEvent ? "Add event" : "Add task"
             color: view.theme.accentText
             font.family: view.theme.textFontFamily
             font.pixelSize: view.theme.px(12)
@@ -725,7 +762,7 @@ Item {
           }
         }
         Text {
-          visible: view.tickTick
+          visible: view.tickTick && !view.calendar.googleWritable
           topPadding: 8
           text: "or a Google Calendar event"
           color: googleMouse.containsMouse ? view.ink : view.inkMuted
@@ -780,10 +817,18 @@ Item {
   // once; the write (and TickTick's sync, which can take seconds) runs in
   // the background, and a failure takes the task back off and says why.
   function addTask(text) {
-    if (!view.tickTick) { Qt.openUrlExternally(view.googleCompose(view.calendar.selected, text)); return }
+    if (view.makingEvent && !view.calendar.googleWritable) { Qt.openUrlExternally(view.googleCompose(view.calendar.selected, text)); return }
     var parsed = view.parsedTask(text)
     if (parsed.title === "") { view.composeError = "Type a title first"; return }
     view.composeError = ""
+    if (view.makingEvent) {
+      // Its start only: Google gets an hour, or the whole day without a time.
+      view.calendar.addEventLocally(parsed.title, parsed.due, String(parsed.time || "").split("-")[0])
+      view.composing = false
+      view.flash = "Added · syncing with Google"
+      flashTimer.restart()
+      return
+    }
     var args = ["add", parsed.title, "--due", parsed.due]
     if (parsed.time) args = args.concat(["--time", parsed.time])
     if (parsed.priority > 0) args = args.concat(["--priority", String(parsed.priority)])
