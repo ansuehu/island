@@ -133,7 +133,7 @@ ColumnLayout {
       icon: "󰘔"
       iconTint: page.system.green
       label: "Top bar"
-      detail: "Always show the island and keep windows from sliding under it"
+      detail: "Keep windows from sliding under the island; the hide-bar toggle is ignored"
       SettingsSwitch {
         view: page.view
         checked: page.view.settings.reserveTop

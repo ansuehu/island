@@ -571,7 +571,7 @@ Item {
           onTriggered: window.edgeRevealed = false
         }
 
-        readonly property bool isEffectivelyHidden: !root.settings.reserveTop && (root.barHidden || autoHideCondition)
+        readonly property bool isEffectivelyHidden: (root.barHidden && !root.settings.reserveTop) || autoHideCondition
           && (root.view === "rest" || hasScreensaver)
 
         // Hover at the top edge can bring a hidden island back.
