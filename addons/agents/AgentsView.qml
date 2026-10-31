@@ -1,9 +1,10 @@
 import QtQuick
+import Quickshell
 
 // The agents live activity, expanded: each session at work (up to four,
 // newest first) with its project, the prompt it's answering, and what it's
-// doing now, timed. Opened by clicking the pill; Esc or a click outside
-// closes it.
+// doing now, timed; a session clicked goes to its terminal. Opened by
+// clicking the pill; Esc or a click outside closes it.
 Item {
   id: view
   required property var agents
@@ -56,7 +57,19 @@ Item {
         width: list.width
         height: body.implicitHeight + 20
         radius: 14
-        color: view.theme.fill("subtle")
+        color: rowMouse.containsMouse ? view.theme.fill("raised") : view.theme.fill("subtle")
+        // Click: to the terminal the session runs in (see focus.sh).
+        MouseArea {
+          id: rowMouse
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: {
+            if (!modelData.cwd) return
+            Quickshell.execDetached([view.agents.localPath("focus.sh"), modelData.cwd])
+            view.host.view = "rest"
+          }
+        }
         Column {
           id: body
           x: 14
