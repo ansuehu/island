@@ -228,6 +228,29 @@ Addon {
 
   // ---------- Fetching ----------
 
+  Timer { id: retrySoon; interval: 60000; onTriggered: calendarAddon.fetch() }
+
+  // The last good reading, kept on disk: on start the calendar shows it at
+  // once and reads the feeds again in the background.
+  FileView {
+    id: cacheFile
+    path: calendarAddon.host.home + "/.local/state/omarchy/island-calendar.json"
+    printErrors: false
+    atomicWrites: true
+    onLoaded: {
+      // A fetch that already finished has newer news.
+      if (calendarAddon.fetchedAt > 0) return
+      try {
+        var saved = JSON.parse(text() || "{}").read || {}
+        var kept = {}
+        calendarAddon.urls.forEach(function(url) { if (saved[url]) kept[url] = saved[url] })
+        if (Object.keys(kept).length === 0) return
+        calendarAddon.read = kept
+        calendarAddon.status = "ready"
+      } catch (e) {}
+    }
+  }
+
   onUrlsChanged: fetch()
   Component.onCompleted: fetch()
   Timer {
@@ -341,20 +364,31 @@ Addon {
       waitForEnd: true
       onStreamFinished: {
         if (fetcher.urls.join(" ") !== calendarAddon.urls.join(" ")) return
-        var next = {}, good = 0
+        var next = {}, good = 0, failed = 0
         text.split("\x1e").forEach(function(part) {
           var m = part.match(/^(\d+)\n([\s\S]*)\x1f(\d+)\n?$/)
+          var url = m ? fetcher.urls[Number(m[1])] : ""
+          var parsed = null
+          // One feed that fails to parse keeps its last reading, not the others'.
+          if (m && m[3] === "0" && /BEGIN:VCALENDAR/.test(m[2])) {
+            try { parsed = calendarAddon.parse(m[2]) } catch (e) { console.warn("calendar: parse failed", url.slice(0, 60), e) }
+          } else if (m) console.warn("calendar: fetch failed", url.slice(0, 60), "curl", m[3])
           if (!m) return
-          var url = fetcher.urls[Number(m[1])]
-          if (m[3] === "0" && /BEGIN:VCALENDAR/.test(m[2])) {
-            next[url] = calendarAddon.parse(m[2])
+          if (!parsed) failed++
+          if (parsed) {
+            next[url] = parsed
             good++
           } else if (calendarAddon.read[url]) {
             next[url] = calendarAddon.read[url]
           }
         })
         calendarAddon.read = next
-        if (good > 0) calendarAddon.fetchedAt = Date.now()
+        // A slow or dropped feed is tried again in a minute, not in five.
+        if (failed > 0) retrySoon.restart()
+        if (good > 0) {
+          calendarAddon.fetchedAt = Date.now()
+          cacheFile.setText(JSON.stringify({ version: 1, savedAt: Date.now(), read: next }))
+        }
         calendarAddon.status = good > 0 || Object.keys(next).length > 0 ? "ready" : "offline"
       }
     }
@@ -366,7 +400,7 @@ Addon {
     fetcher.urls = urls
     fetcher.command = ["bash", "-c",
       // All at once (each feed can take seconds), then printed in order.
-      'd=$(mktemp -d); i=0; for u in "$@"; do { curl -sfL --max-time 15 "$u" > "$d/$i"; echo $? > "$d/$i.rc"; } & i=$((i+1)); done; wait; '
+      'd=$(mktemp -d); i=0; for u in "$@"; do { curl -sfL --max-time 45 "$u" > "$d/$i"; echo $? > "$d/$i.rc"; } & i=$((i+1)); done; wait; '
         + 'for ((j = 0; j < i; j++)); do printf "\\036%d\\n" "$j"; cat "$d/$j"; printf "\\037%s\\n" "$(cat "$d/$j.rc")"; done; rm -rf "$d"',
       "calendar"].concat(urls)
     fetcher.running = true
