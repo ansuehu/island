@@ -48,6 +48,7 @@ Item {
       property int bannerSeconds: 5
       property bool notch: false
       property bool reserveTop: false
+      property real pillScale: 1
       property bool downloads: true
       property bool clipboard: true
       property bool screenRecordingActivity: true

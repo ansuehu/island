@@ -39,7 +39,7 @@ Item {
   // The live-activity pills' height, and the resting clock's.
   readonly property real pillHeight: settings.notch ? 40 : 44
   // Room the top bar mode keeps clear: the pill, and its gap from the edge.
-  readonly property real reservedTop: pillHeight + (settings.notch ? 0 : 8) + 4
+  readonly property real reservedTop: pillHeight * settings.pillScale + (settings.notch ? 0 : 8) + 4
   readonly property real clockHeight: clockStacked ? (settings.notch ? 40 : 42) : (settings.notch ? 36 : 40)
 
   readonly property var nowPlaying: nowPlayingData
@@ -772,9 +772,9 @@ Item {
             bounce: island.squished ? 0 : 0.35
             target: island.squished ? 100 : 0
           }
-          scale: root.settings.notch ? 1.0 : (1 + liftSpring.value * 0.00018 - pressSpring.value * 0.0003)
+          scale: (root.surfaceOpen ? 1 : root.settings.pillScale) * (root.settings.notch ? 1.0 : (1 + liftSpring.value * 0.00018 - pressSpring.value * 0.0003))
           // With the notch the island hangs from the top edge, so it scales from there.
-          transformOrigin: root.settings.notch ? Item.Top : Item.Center
+          transformOrigin: root.settings.notch || root.settings.pillScale < 1 ? Item.Top : Item.Center
           HoverHandler { id: clockHover; enabled: root.view === "rest" }
           HoverHandler {
             id: islandPointerHover

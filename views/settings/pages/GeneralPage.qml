@@ -86,6 +86,20 @@ ColumnLayout {
     }
     SettingsRow {
       view: page.view
+      icon: "󰩨"
+      iconTint: page.system.orange
+      label: "Pill size"
+      detail: "Shrinks the island while it rests; open views stay full size"
+      SettingsSlider {
+        view: page.view
+        from: 0.6
+        to: 1
+        value: page.view.settings.pillScale
+        onMoved: function(v) { page.view.settings.pillScale = v }
+      }
+    }
+    SettingsRow {
+      view: page.view
       icon: "󰘔"
       iconTint: page.system.green
       label: "Top bar"
