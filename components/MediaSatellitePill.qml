@@ -19,17 +19,23 @@ Rectangle {
   readonly property string artist: nowPlaying && nowPlaying.artist ? nowPlaying.artist : (player && player.trackArtist ? String(player.trackArtist) : "")
   readonly property string artUrl: nowPlaying && nowPlaying.art ? nowPlaying.art : ""
 
-  readonly property bool shown: shape && shape.isGlanceExpanded && !hasMediaInGlance && isPlaying && host.view === "rest" && (host.settings.glanceMediaSatellite !== false)
+  // Stacked under another live activity (a recording, an addon's like Claude
+  // working, a download), which has pushed the media pill out of the island.
+  readonly property bool stacked: host.view === "rest" && isPlaying && host.settings.mediaPill
+    && host.settings.glanceMediaSatellite !== false
+    && (host.recordingPill || host.addons.ongoing || host.downloadPill)
+  readonly property bool shown: !!shape && isPlaying && host.view === "rest" && (host.settings.glanceMediaSatellite !== false)
+    && ((shape.isGlanceExpanded && !hasMediaInGlance) || stacked)
   readonly property bool isHovered: mouseArea.containsMouse
 
   x: shape ? shape.x + (shape.width - width) / 2 : 0
-  readonly property real targetY: shape ? shape.y + shape.height + (host.settings.notch ? 8 : 6) : 0
+  readonly property real targetY: shape ? shape.y + shape.height * shape.scale + (host.settings.notch ? 8 : 6) : 0
   y: ySpring.value
   MotionSpring {
     id: ySpring
     theme: satellite.host.theme
     pace: "quick"
-    target: satellite.shown ? satellite.targetY : (shape ? shape.y + shape.height - 10 : 0)
+    target: satellite.shown ? satellite.targetY : (shape ? shape.y + shape.height * shape.scale - 10 : 0)
   }
 
   implicitWidth: Math.max(160, Math.min(260, contentRow.implicitWidth + 24))
