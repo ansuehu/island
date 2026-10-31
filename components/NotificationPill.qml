@@ -39,47 +39,19 @@ IslandPill {
 
   PillReveal { id: reveal; theme: host.theme; shown: pill.shown }
 
-  ClippingRectangle {
+  // The image or app icon: round beside a compact banner, a rounded square
+  // at the head of an expanded one (see AppTile).
+  AppTile {
     id: appTile
+    visible: !pill.expanded
     opacity: reveal.leadingIn
     PillPart { target: appTile; progress: reveal.leadingIn }
     anchors.left: parent.left
-    anchors.leftMargin: pill.expanded ? 16 : 7
-    anchors.top: pill.expanded ? parent.top : undefined
-    anchors.topMargin: 14
-    anchors.verticalCenter: pill.expanded ? undefined : parent.verticalCenter
-    // Grows with the pill so it never pokes past the rounded ends.
+    anchors.leftMargin: 7
+    anchors.verticalCenter: parent.verticalCenter
     width: height
-    height: pill.expanded ? 40 : Math.max(0, Math.min(32, shape.height - 12))
-    radius: pill.expanded ? height * 0.28 : height / 2
-    color: "transparent"
-    Rectangle {
-      anchors.fill: parent
-      visible: appTileImage.status !== Image.Ready
-      gradient: Gradient {
-        GradientStop { position: 0; color: pill.brand ? Qt.lighter(pill.brand.tile, 1.12) : Qt.lighter(host.theme.accent, 1.25) }
-        GradientStop { position: 1; color: pill.brand ? pill.brand.tile : host.theme.accent }
-      }
-    }
-    Image {
-      id: appTileImage
-      anchors.fill: parent
-      source: pill.iconSource
-      sourceSize.width: 100
-      sourceSize.height: 100
-      fillMode: Image.PreserveAspectCrop
-      asynchronous: true
-      visible: status === Image.Ready
-      onStatusChanged: if (status === Image.Error) pill.imageFailed = true
-    }
-    Text {
-      anchors.centerIn: parent
-      visible: appTileImage.status !== Image.Ready
-      text: pill.brand ? pill.brand.glyph : String(pill.row.glyph || "") || "󰂚"
-      color: pill.brand ? pill.brand.ink : host.theme.accentText
-      font.family: pill.brand ? "JetBrainsMono Nerd Font" : host.theme.fontFamily
-      font.pixelSize: pill.brand ? Math.round(parent.height * 0.6) : pill.host.theme.px(24)
-    }
+    height: Math.max(0, Math.min(32, shape.height - 12))
+    radius: height / 2
   }
 
   Column {
@@ -153,8 +125,7 @@ IslandPill {
     Row {
       width: parent.width
       spacing: 12
-      // The tile (appTile) sits here.
-      Item { width: 40; height: 40 }
+      AppTile { width: 40; height: 40; radius: 11 }
       Column {
         width: parent.width - 52
         anchors.verticalCenter: parent.verticalCenter
@@ -263,4 +234,36 @@ IslandPill {
       onClicked: button.activated()
     }
   }
+
+  component AppTile: ClippingRectangle {
+    color: "transparent"
+    Rectangle {
+      anchors.fill: parent
+      visible: appTileImage.status !== Image.Ready
+      gradient: Gradient {
+        GradientStop { position: 0; color: pill.brand ? Qt.lighter(pill.brand.tile, 1.12) : Qt.lighter(host.theme.accent, 1.25) }
+        GradientStop { position: 1; color: pill.brand ? pill.brand.tile : host.theme.accent }
+      }
+    }
+    Image {
+      id: appTileImage
+      anchors.fill: parent
+      source: pill.iconSource
+      sourceSize.width: 100
+      sourceSize.height: 100
+      fillMode: Image.PreserveAspectCrop
+      asynchronous: true
+      visible: status === Image.Ready
+      onStatusChanged: if (status === Image.Error) pill.imageFailed = true
+    }
+    Text {
+      anchors.centerIn: parent
+      visible: appTileImage.status !== Image.Ready
+      text: pill.brand ? pill.brand.glyph : String(pill.row.glyph || "") || "󰂚"
+      color: pill.brand ? pill.brand.ink : host.theme.accentText
+      font.family: pill.brand ? "JetBrainsMono Nerd Font" : host.theme.fontFamily
+      font.pixelSize: pill.brand ? Math.round(parent.height * 0.6) : pill.host.theme.px(24)
+    }
+  }
+
 }
