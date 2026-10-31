@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import QtQuick.Layouts
 import "../controls"
 
@@ -13,6 +14,20 @@ ColumnLayout {
   SettingsGroup {
     view: page.view
     title: "Banners"
+    SettingsRow {
+      view: page.view
+      label: "Preview"
+      detail: "Closes Settings and sends a notification with buttons, to see the banner as it is"
+      SettingsButton {
+        view: page.view
+        label: "Send Test Notification"
+        onClicked: {
+          page.view.host.view = "rest"
+          // A moment for Settings to close, or the banner has nowhere to show.
+          Quickshell.execDetached(["sh", "-c", "sleep 0.4; notify-send -a Island -A 'ok=Looks good' 'Test notification' 'This is how a banner looks with your settings. Hover it, or try its buttons.'"])
+        }
+      }
+    }
     SettingsRow {
       view: page.view
       label: "Banner Style"
