@@ -130,21 +130,6 @@ ColumnLayout {
     }
     SettingsRow {
       view: page.view
-      icon: "󰕰"
-      iconTint: page.system.blue
-      label: "Small controls"
-      detail: "Every control a quarter row, icon over label; resize one by one in Edit Controls"
-      SettingsSwitch {
-        view: page.view
-        checked: String(page.view.settings.controlCenterSmall || "") !== ""
-        onToggled: function(on) {
-          var keys = String(page.view.settings.controlCenterOrder || "").split(",").filter(function(k) { return k !== "" && k !== "sound" && k !== "microphone" && k !== "display" })
-          page.view.settings.controlCenterSmall = on ? keys.join(",") : ""
-        }
-      }
-    }
-    SettingsRow {
-      view: page.view
       icon: "󰘔"
       iconTint: page.system.green
       label: "Top bar"
