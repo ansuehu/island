@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../controls"
+import "../../../components"
 
 // Settings → General: the pill, when it hides, appearance and motion.
 ColumnLayout {
@@ -383,6 +384,9 @@ ColumnLayout {
         page.view.host.preview("capsules", 3000)
       }
     }
+    // Kept by name, so a reorder moves the pills (and the Flow slides them
+    // over) instead of rebuilding them mid-drag.
+    KeyedListModel { id: arrangeModel; values: arrangeRow.shownLine }
     Flow {
       id: arrangeFlow
       Layout.fillWidth: true
@@ -390,71 +394,96 @@ ColumnLayout {
       Layout.rightMargin: 14
       Layout.bottomMargin: 10
       spacing: 6
+      // The others slide into their new places.
+      move: Transition { MotionAnimation { theme: page.view.host.theme; property: "x"; pace: "standard" } }
       HoverHandler {
         onHoveredChanged: hovered ? page.view.host.holdPreview("capsules") : page.view.host.preview("capsules", 1500)
       }
       Repeater {
-        model: arrangeRow.shownLine
-        delegate: Rectangle {
+        model: arrangeModel.model
+        delegate: Item {
           id: pill
-          required property string modelData
+          required property var entry
           required property int index
+          readonly property string modelData: String(entry)
           readonly property bool island: modelData === "island"
+          readonly property bool dragging: drag.active
+          z: dragging ? 10 : 0
           height: 28
           width: pillRow.implicitWidth + 12
-          radius: 14
-          color: island ? page.view.accent : drag.active ? page.view.host.theme.fill("strong") : page.view.host.theme.fill("raised")
-          // Dragged: it swaps with a neighbour once the pointer passes that
-          // neighbour's middle.
+          // Where the pointer is along the Flow while dragging.
+          property real pointerX: 0
+          property real grabX: 0
+
+          // The pill itself: under the pointer while dragged (lifted a
+          // little), easing back into its slot on release.
+          Rectangle {
+            id: face
+            width: parent.width
+            height: parent.height
+            radius: 14
+            x: pill.dragging ? pill.pointerX - pill.grabX - pill.x : 0
+            Behavior on x { enabled: !pill.dragging; MotionAnimation { theme: page.view.host.theme; pace: "standard" } }
+            scale: pill.dragging ? 1.08 : 1
+            Behavior on scale { MotionAnimation { theme: page.view.host.theme; pace: "quick" } }
+            color: pill.island ? page.view.accent : pill.dragging ? page.view.host.theme.fill("stronger") : page.view.host.theme.fill("raised")
+            Behavior on color { MotionColorAnimation { theme: page.view.host.theme } }
+            border.width: pill.dragging ? 1 : 0
+            border.color: page.view.host.theme.fill("strong")
+            Row {
+              id: pillRow
+              anchors.centerIn: parent
+              spacing: 4
+              Text {
+                visible: !pill.island
+                text: "‹"
+                color: leftArrow.containsMouse ? "#ffffff" : page.view.textMuted
+                font.pixelSize: page.view.host.theme.px(15)
+                anchors.verticalCenter: parent.verticalCenter
+                MouseArea { id: leftArrow; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                  onClicked: arrangeRow.move(pill.modelData, -1) }
+              }
+              Text {
+                text: pill.island ? "Island" : arrangeRow.names[pill.modelData]
+                color: pill.island ? page.view.host.theme.accentText : "#ffffff"
+                font.family: page.view.host.theme.textFontFamily
+                font.pixelSize: page.view.host.theme.px(12)
+                font.weight: Font.Medium
+                anchors.verticalCenter: parent.verticalCenter
+              }
+              Text {
+                visible: !pill.island
+                text: "›"
+                color: rightArrow.containsMouse ? "#ffffff" : page.view.textMuted
+                font.pixelSize: page.view.host.theme.px(15)
+                anchors.verticalCenter: parent.verticalCenter
+                MouseArea { id: rightArrow; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                  onClicked: arrangeRow.move(pill.modelData, 1) }
+              }
+            }
+          }
+          HoverHandler { enabled: !pill.island; cursorShape: pill.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
           DragHandler {
             id: drag
             enabled: !pill.island
             target: null
             yAxis.enabled: false
-            cursorShape: Qt.ClosedHandCursor
-            onActiveTranslationChanged: {
+            onActiveChanged: if (active) {
+              pill.grabX = centroid.pressPosition.x
+              pill.pointerX = pill.x + pill.grabX
+            }
+            onCentroidChanged: {
               if (!active) return
-              var middle = pill.x + pill.width / 2 + activeTranslation.x
+              pill.pointerX = pill.mapToItem(arrangeFlow, centroid.position.x, 0).x
+              // Past a neighbour's middle: trade places with it.
               var kids = arrangeFlow.children
               for (var i = 0; i < kids.length; i++) {
                 var other = kids[i]
-                if (other === pill || other.modelData === undefined) continue
+                if (other === pill || other.index === undefined) continue
                 var center = other.x + other.width / 2
-                if (other.index === pill.index + 1 && middle > center) { arrangeRow.move(pill.modelData, 1); break }
-                if (other.index === pill.index - 1 && middle < center) { arrangeRow.move(pill.modelData, -1); break }
+                if (other.index === pill.index + 1 && pill.pointerX > center) { arrangeRow.move(pill.modelData, 1); break }
+                if (other.index === pill.index - 1 && pill.pointerX < center) { arrangeRow.move(pill.modelData, -1); break }
               }
-            }
-          }
-          HoverHandler { enabled: !pill.island; cursorShape: Qt.OpenHandCursor }
-          Row {
-            id: pillRow
-            anchors.centerIn: parent
-            spacing: 4
-            Text {
-              visible: !pill.island
-              text: "‹"
-              color: leftArrow.containsMouse ? "#ffffff" : page.view.textMuted
-              font.pixelSize: page.view.host.theme.px(15)
-              anchors.verticalCenter: parent.verticalCenter
-              MouseArea { id: leftArrow; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: arrangeRow.move(pill.modelData, -1) }
-            }
-            Text {
-              text: pill.island ? "Island" : arrangeRow.names[pill.modelData]
-              color: pill.island ? page.view.host.theme.accentText : "#ffffff"
-              font.family: page.view.host.theme.textFontFamily
-              font.pixelSize: page.view.host.theme.px(12)
-              font.weight: Font.Medium
-              anchors.verticalCenter: parent.verticalCenter
-            }
-            Text {
-              visible: !pill.island
-              text: "›"
-              color: rightArrow.containsMouse ? "#ffffff" : page.view.textMuted
-              font.pixelSize: page.view.host.theme.px(15)
-              anchors.verticalCenter: parent.verticalCenter
-              MouseArea { id: rightArrow; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: arrangeRow.move(pill.modelData, 1) }
             }
           }
         }
