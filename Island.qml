@@ -7,6 +7,7 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
+import Quickshell.Services.SystemTray
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "addons"
@@ -978,6 +979,18 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.horizontalCenterOffset: -island.stackShift / 2
             anchors.verticalCenter: parent.verticalCenter
+          }
+          // A tray app asking for attention, as a dot on the resting pill (the
+          // tray itself is behind the control center's button).
+          Rectangle {
+            readonly property bool wanted: SystemTray.items.values.some(function(item) { return item.status === Status.NeedsAttention })
+            visible: root.view === "rest" && wanted
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.rightMargin: Math.max(8, parent.height / 4)
+            anchors.topMargin: 6
+            width: 7; height: 7; radius: 3.5
+            color: root.theme.system.red
           }
           // The music, stacked into the same island beside the other activity.
           Item {
