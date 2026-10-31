@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import "../../components"
 
@@ -575,7 +576,15 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
               var link = view.eventLink(view.detail)
-              if (link !== "") Qt.openUrlExternally(link)
+              if (link === "") return
+              // TickTick's own app when it's installed (its window if open,
+              // else launched); the web app otherwise.
+              if (link.indexOf("ticktick.com") >= 0) {
+                Quickshell.execDetached(["sh", "-c",
+                  'omarchy-hyprland-focus-app ticktick || { command -v ticktick >/dev/null && exec setsid ticktick; } || exec xdg-open "$1"',
+                  "open", link])
+                view.host.view = "rest"
+              } else Qt.openUrlExternally(link)
             }
           }
         }
