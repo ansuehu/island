@@ -31,7 +31,9 @@ Addon {
   readonly property var urls: String(addon.option("urls") || "").split(/[\s,]+/)
     .filter(function(url) { return url !== "" })
     .map(function(url) { return url.replace(/^webcal:\/\//i, "https://") })
-  readonly property int refreshMs: 30 * 60 * 1000
+  readonly property int refreshMs: 5 * 60 * 1000
+  // Opening the view re-reads anything older than this.
+  readonly property int openRefreshMs: 60 * 1000
   readonly property int reminderMs: 10 * 60 * 1000
 
   // "missing" (no calendar), "loading", "ready", or "offline" (none of them
@@ -183,7 +185,7 @@ Addon {
   }
   function viewOpened() {
     selectToday()
-    if (urls.length > 0 && Date.now() - fetchedAt > refreshMs) fetch()
+    if (urls.length > 0 && Date.now() - fetchedAt > openRefreshMs) fetch()
   }
   function retry() { fetch() }
 
