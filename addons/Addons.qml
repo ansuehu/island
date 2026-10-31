@@ -39,7 +39,9 @@ Item {
       ],
       description: "Your month and the day's events",
       options: [
-        { key: "urls", label: "Calendars", detail: "ICS links, separated by spaces", type: "text", default: "", placeholder: "https://…/basic.ics" }
+        { key: "urls", label: "Calendars", detail: "ICS links, separated by spaces", type: "text", default: "", placeholder: "https://…/basic.ics" },
+        { key: "tickTickOpens", label: "Open TickTick Tasks In", detail: "The app can't be sent to one task; the web opens the task itself", type: "segmented", default: "app",
+          choices: [{ label: "App", value: "app" }, { label: "Web", value: "web" }] }
       ] },
     // Before the timer, so a call holds the island over a countdown.
     { id: "meetings", name: "Meetings", icon: "󰏲", color: "#30d158", default: false, source: "meetings/MeetingsAddon.qml",
