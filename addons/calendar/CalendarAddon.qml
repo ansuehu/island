@@ -66,6 +66,14 @@ Addon {
   // Shown at once after a quick add (TickTick's feed lags it by about a
   // minute); each is dropped once the feed has it, or after ten minutes.
   property var pending: []
+  // A task added from the calendar: shown now, written in the background
+  // (see taskQueue); `pendingId` ties the two.
+  function addTaskLocally(title, due, time, args) {
+    var id = addPending(title, due, time)
+    taskError = ""
+    taskQueue = taskQueue.concat([{ key: "", pendingId: id, command: [tickTickCli].concat(args) }])
+    runNextTask()
+  }
   function addPending(title, due, time) {
     var parts = String(due).split("-")
     var day = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
@@ -76,7 +84,9 @@ Addon {
       start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), +m[1], +m[2]).getTime()
       end = m[3] ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), +m[3], +m[4]).getTime() : start
     }
-    pending = pending.concat([{ title: title, start: start, end: end, allDay: allDay, calendar: "TickTick", hint: "", addedAt: Date.now() }])
+    var id = Date.now() + Math.random()
+    pending = pending.concat([{ title: title, start: start, end: end, allDay: allDay, calendar: "TickTick", hint: "", addedAt: Date.now(), pendingId: id }])
+    return id
   }
   Timer {
     interval: 60000
@@ -260,12 +270,14 @@ Addon {
     var job = taskQueue[0]
     taskQueue = taskQueue.slice(1)
     taskRunner.taskId = job.key
+    taskRunner.pendingId = job.pendingId || 0
     taskRunner.command = job.command
     taskRunner.running = true
   }
   Process {
     id: taskRunner
     property string taskId: ""
+    property real pendingId: 0
     stderr: StdioCollector { id: taskRunnerError; waitForEnd: true }
     onExited: function(code) {
       if (code !== 0) {
@@ -273,6 +285,8 @@ Addon {
         var next = Object.assign({}, calendarAddon.doneTasks)
         delete next[taskRunner.taskId]
         calendarAddon.doneTasks = next
+        if (taskRunner.pendingId)
+          calendarAddon.pending = calendarAddon.pending.filter(function(p) { return p.pendingId !== taskRunner.pendingId })
         calendarAddon.taskError = String(taskRunnerError.text || "").trim() || "TickTick didn't take it"
       } else {
         calendarAddon.catchUp()
