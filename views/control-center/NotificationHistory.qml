@@ -131,7 +131,7 @@ ColumnLayout {
     Layout.leftMargin: -6
     // Grows and shrinks with the rows as they come and go, instead of
     // jumping to the new content height while they're still animating.
-    property real frameHeight: history.empty ? 0 : Math.min(contentHeight, 320)
+    property real frameHeight: history.empty ? 0 : Math.min(contentHeight, history.showAll ? 640 : 320)
     Behavior on frameHeight { enabled: history.settled; MotionAnimation { theme: history.center.host.theme; pace: "standard" } }
     Layout.preferredHeight: frameHeight
     clip: true
