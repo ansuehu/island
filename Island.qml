@@ -1154,6 +1154,12 @@ Item {
             color: root.settings.colorfulLiveActivities ? root.theme.system.green : root.theme.accent
             font.family: root.theme.fontFamily
             font.pixelSize: root.theme.px(16)
+            MouseArea {
+              anchors.fill: parent
+              anchors.margins: -4
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.view = "share"
+            }
           }
           // The recording, stacked the same way: its dot and time; a click stops it.
           Item {
