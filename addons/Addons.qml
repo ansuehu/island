@@ -123,6 +123,7 @@ Item {
       description: "Agent limits, daily tokens, and Claude Code at work",
       options: [
         { key: "live", label: "Live Activity", detail: "Claude Code's steps on the island while it works", type: "switch", default: true },
+        { key: "askSound", label: "Sound When Asked", detail: "A chime when Claude waits on your answer", type: "switch", default: true },
         { key: "agent", label: "Agent", detail: "Usage read by Omarchy's agent collectors", type: "popup", default: "claude",
           choices: [{ label: "Claude", value: "claude" }, { label: "Codex", value: "codex" }, { label: "All Models", value: "all" }] }
       ] },

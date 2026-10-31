@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import ".."
 
@@ -126,6 +127,14 @@ Addon {
   readonly property var live: working ? sessions.filter(function(s) { return s.state !== "done" })[0] : session
   // Waiting on your answer to a question or its plan.
   readonly property bool asking: !!live && live.state === "asking"
+  // Waiting on you: the pill comes up (amber) over whatever's on the island,
+  // with a chime unless that's switched off.
+  onAskingChanged: {
+    if (!asking) return
+    if (!host.surfaceOpen) host.showFeedback("", 6000, "addon:" + addon.id)
+    if (addon.option("askSound") !== false)
+      Quickshell.execDetached(["pw-play", "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"])
+  }
 
   Process {
     id: liveWatch
