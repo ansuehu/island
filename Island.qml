@@ -31,7 +31,10 @@ Item {
   // then the media playing. None shows while the companion needs setting up.
   readonly property bool resting: view === "rest" && !setup.needsSetup
   readonly property bool recordingPill: resting && settings.screenRecordingActivity && recorder.active
-  readonly property bool restingFree: resting && !recordingPill && !addons.ongoing
+  // A recording shrinks to a dot and its time beside another activity (an
+  // addon's, or the music playing) instead of taking the island from it.
+  readonly property bool recordingStacked: recordingPill && (addons.ongoing || (nowPlaying.playing && settings.mediaPill))
+  readonly property bool restingFree: resting && (!recordingPill || recordingStacked) && !addons.ongoing
   readonly property bool downloadDone: restingFree
     && (downloads.finishedName !== "" || packages.finishedTitle !== "")
   readonly property bool downloadActive: restingFree && (downloads.active || packages.active) && !downloadDone
@@ -40,8 +43,8 @@ Item {
   // Another live activity has the island, and music is playing: the island
   // widens by stackWidth and the cover and wave sit at its right end.
   readonly property bool mediaStacked: resting && nowPlaying.playing && settings.mediaPill
-    && (recordingPill || addons.ongoing || downloadPill)
-  readonly property real stackWidth: 92
+    && (addons.ongoing || downloadPill)
+  readonly property real stackWidth: (mediaStacked ? 92 : 0) + (recordingStacked ? 74 : 0)
   // The live-activity pills' height, and the resting clock's.
   readonly property real pillHeight: settings.notch ? 40 : 44
   // Room the top bar mode keeps clear: the pill, and its gap from the edge.
@@ -154,7 +157,7 @@ Item {
   // The addon whose pill is on the island, if any (see addons/Addon.qml):
   // the one shown for a moment, or at rest an ongoing one's.
   readonly property var addonPill: view === "feedback" ? addons.pillFor(feedbackKind)
-    : resting && !recordingPill ? addons.ongoing : null
+    : resting && (!recordingPill || recordingStacked) ? addons.ongoing : null
 
   // ---------- Workspace switches ----------
 
@@ -687,7 +690,7 @@ Item {
           readonly property Item activeSurface: views.surfaceFor(root.view)
           readonly property Item activePill: pills.active
           // How much of the island's right end the stacked media takes.
-          property real stackShift: root.mediaStacked ? root.stackWidth : 0
+          property real stackShift: root.stackWidth
           Behavior on stackShift { MotionAnimation { theme: root.theme; pace: "standard" } }
           readonly property bool glanceHovered: clockHover.hovered || islandPointerHover.hovered || (satellitePill && satellitePill.isHovered)
           property bool glanceActive: false
@@ -754,7 +757,7 @@ Item {
             : baseGlanceWidth + clockExtra
           readonly property real targetWidth: activeSurface ? activeSurface.islandWidth
             : island.isGlanceExpanded ? island.glanceWidth
-            : activePill ? activePill.pillWidth + (activePill.keepsClock ? clockExtra : 0) + (root.mediaStacked ? root.stackWidth : 0)
+            : activePill ? activePill.pillWidth + (activePill.keepsClock ? clockExtra : 0) + root.stackWidth
             : root.view === "feedback" ? 280
             : root.setup.needsSetup ? (root.setup.warning.length > 24 ? 320 : 250)
             : 100 + clockExtra
@@ -923,7 +926,7 @@ Item {
             anchors.right: parent.right
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            width: root.stackWidth - 24
+            width: 68
             height: 26
             Row {
               anchors.verticalCenter: parent.verticalCenter
@@ -956,6 +959,41 @@ Item {
               anchors.margins: -4
               cursorShape: Qt.PointingHandCursor
               onClicked: root.view = "player"
+            }
+          }
+          // The recording, stacked the same way: its dot and time; a click stops it.
+          Item {
+            id: stackedRecording
+            opacity: root.recordingStacked ? 1 : 0
+            visible: opacity > 0.01
+            Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
+            anchors.right: root.mediaStacked ? stackedMedia.left : parent.right
+            anchors.rightMargin: root.mediaStacked ? 12 : 14
+            anchors.verticalCenter: parent.verticalCenter
+            width: 50
+            height: 26
+            readonly property color ink: root.settings.colorfulLiveActivities ? root.theme.system.red : root.theme.accent
+            Rectangle {
+              anchors.verticalCenter: parent.verticalCenter
+              width: 9; height: 9; radius: 4.5
+              color: stackedRecording.ink
+              opacity: root.recorder.recording ? 1 : 0.35
+            }
+            Text {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.recorder.recording ? root.recorder.timeText(root.recorder.elapsed) : "…"
+              color: stackedRecording.ink
+              font.family: root.theme.textFontFamily
+              font.pixelSize: root.theme.px(12)
+              font.weight: Font.Medium
+              font.features: { "tnum": 1 }
+            }
+            MouseArea {
+              anchors.fill: parent
+              anchors.margins: -4
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.recorder.stop()
             }
           }
           TextMetrics { id: clockMetrics; font: clockLabel.font; text: root.clockStacked ? root.clockWidestText : root.clockText }
