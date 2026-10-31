@@ -74,7 +74,26 @@ Addon {
     taskQueue = taskQueue.concat([{ key: "", pendingId: id, command: [tickTickCli].concat(args) }])
     runNextTask()
   }
-  function addPending(title, due, time) {
+  // Google Calendar writes go through the Omarchy Google Calendar plugin's
+  // Caldir tools (create the event locally, then push), when installed.
+  readonly property string caldirScripts: host.home + "/.config/omarchy/plugins/omarchy-google-calendar-clock/scripts/"
+  property bool googleWritable: false
+  Process {
+    running: true
+    command: ["test", "-x", calendarAddon.caldirScripts + "calendar-create"]
+    onExited: function(code) { calendarAddon.googleWritable = code === 0 }
+  }
+  // An event added from the calendar, the same way as a task: shown now,
+  // created and pushed to Google in the background.
+  function addEventLocally(title, due, time) {
+    var id = addPending(title, due, time, "Google Calendar")
+    taskError = ""
+    taskQueue = taskQueue.concat([{ key: "", pendingId: id, command: ["sh", "-c",
+      '"$1" "$2" "$3" "$4" none "" "" && "$5" --confirm',
+      "create", caldirScripts + "calendar-create", title, due, time, caldirScripts + "calendar-push"] }])
+    runNextTask()
+  }
+  function addPending(title, due, time, calendarName) {
     var parts = String(due).split("-")
     var day = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
     var start = day.getTime(), end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime(), allDay = true
@@ -82,10 +101,11 @@ Addon {
     if (m) {
       allDay = false
       start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), +m[1], +m[2]).getTime()
-      end = m[3] ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), +m[3], +m[4]).getTime() : start
+      end = m[3] ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), +m[3], +m[4]).getTime()
+        : calendarName ? start + 3600000 : start
     }
     var id = Date.now() + Math.random()
-    pending = pending.concat([{ title: title, start: start, end: end, allDay: allDay, calendar: "TickTick", hint: "", addedAt: Date.now(), pendingId: id }])
+    pending = pending.concat([{ title: title, start: start, end: end, allDay: allDay, calendar: calendarName || "TickTick", hint: "", addedAt: Date.now(), pendingId: id }])
     return id
   }
   Timer {
