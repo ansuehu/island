@@ -1282,6 +1282,9 @@ Item {
     width: shape.width
     height: shape.height
     radius: shape.radius
+    // Scaled with the island (the pill-size setting), or it spreads past it.
+    scale: shape.scale
+    transformOrigin: shape.transformOrigin
     opacity: root.surfaceOpen ? 1 : 0
     visible: opacity > 0.01
     Behavior on opacity { MotionAnimation { theme: root.theme; pace: root.surfaceOpen ? "morph" : "exit"; curve: "fade" } }
@@ -1295,7 +1298,8 @@ Item {
     property bool mirrored: false
     readonly property real r: 10
     visible: root.settings.notch && shape.y > -r
-    x: mirrored ? shape.x + shape.width - 0.5 : shape.x - r
+    // At the island's drawn edges (it's scaled from its top middle).
+    x: mirrored ? shape.x + shape.width * (1 + shape.scale) / 2 - 0.5 : shape.x + shape.width * (1 - shape.scale) / 2 - r
     y: shape.y
     width: r + 0.5
     height: r
