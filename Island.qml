@@ -446,9 +446,21 @@ Item {
         .filter(function(a) { return a !== "" }).concat([app]).join(", ")
     dismissPillNotification()
   }
-  // Snoozed banners come back once their time's up; shortcut: kept in
-  // memory only, so a shell restart drops them.
+  // Snoozed banners come back once their time's up, kept on disk so a
+  // shell restart doesn't lose them.
   property var snoozed: []
+  property bool snoozedLoaded: false
+  onSnoozedChanged: if (snoozedLoaded) snoozedFile.setText(JSON.stringify(snoozed) + "\n")
+  FileView {
+    id: snoozedFile
+    path: root.home + "/.local/state/omarchy/island-snoozed.json"
+    printErrors: false
+    onLoaded: {
+      try { root.snoozed = JSON.parse(text() || "[]") } catch (e) { root.snoozed = [] }
+      root.snoozedLoaded = true
+    }
+    onLoadFailed: root.snoozedLoaded = true
+  }
   function snoozeNotification(row, minutes) {
     var copy = Object.assign({}, row, { snoozed: true, actions: [] })
     snoozed = snoozed.concat([{ row: copy, at: Date.now() + minutes * 60000 }])
