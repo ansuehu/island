@@ -26,6 +26,17 @@ ColumnLayout {
     }
     SettingsRow {
       view: page.view
+      label: "Silenced apps"
+      detail: "No banners from these (names, separated by commas); they still reach the history"
+      SettingsTextField {
+        view: page.view
+        value: page.view.settings.mutedApps
+        placeholder: "Slack, Discord"
+        onCommitted: function(v) { page.view.settings.mutedApps = v }
+      }
+    }
+    SettingsRow {
+      view: page.view
       label: "Banner Duration"
       detail: "How long a notification stays on the pill"
       last: true

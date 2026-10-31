@@ -413,7 +413,7 @@ Item {
     home: root.home
     historyVisible: root.view === "controls"
     onArrived: function(row) {
-      if (!root.surfaceOpen) root.showFeedback(String(row.summary || row.app || "Notification"), root.settings.bannerSeconds * 1000, "notification")
+      if (!root.surfaceOpen && !root.notificationSilenced(row)) root.showFeedback(String(row.summary || row.app || "Notification"), root.settings.bannerSeconds * 1000, "notification")
     }
   }
   // The island's own banners (setup, updates) in the notification pill.
@@ -426,6 +426,49 @@ Item {
     feedbackTimer.stop()
     feedbackKind = ""
     view = "rest"
+  }
+  // A hovered banner stays until the pointer leaves it.
+  function holdFeedback(hold) {
+    if (hold) feedbackTimer.stop()
+    else if (view === "feedback") feedbackTimer.restart()
+  }
+  // Apps whose banners don't show (Settings → Notifications); they still
+  // reach the history.
+  function notificationSilenced(row) {
+    var app = String(row && row.app || "").toLowerCase()
+    return app !== "" && String(settings.mutedApps || "").toLowerCase().split(",")
+      .map(function(a) { return a.trim() }).indexOf(app) >= 0
+  }
+  function silenceApp(row) {
+    var app = String(row && row.app || "").trim()
+    if (app !== "" && !notificationSilenced(row))
+      settings.mutedApps = String(settings.mutedApps || "").split(",").map(function(a) { return a.trim() })
+        .filter(function(a) { return a !== "" }).concat([app]).join(", ")
+    dismissPillNotification()
+  }
+  // Snoozed banners come back once their time's up; shortcut: kept in
+  // memory only, so a shell restart drops them.
+  property var snoozed: []
+  function snoozeNotification(row, minutes) {
+    var copy = Object.assign({}, row, { snoozed: true, actions: [] })
+    snoozed = snoozed.concat([{ row: copy, at: Date.now() + minutes * 60000 }])
+    dismissPillNotification()
+  }
+  Timer {
+    interval: 15000
+    repeat: true
+    running: root.snoozed.length > 0
+    onTriggered: {
+      if (root.surfaceOpen || root.view === "feedback") return
+      var now = Date.now()
+      for (var k = 0; k < root.snoozed.length; k++) {
+        if (root.snoozed[k].at > now) continue
+        var due = root.snoozed[k].row
+        root.snoozed = root.snoozed.filter(function(_, j) { return j !== k })
+        root.showBanner(due, root.settings.bannerSeconds * 1000)
+        return
+      }
+    }
   }
   function dismissPillNotification() {
     var row = notifications.last
