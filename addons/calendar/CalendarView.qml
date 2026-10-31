@@ -921,6 +921,7 @@ Item {
           readonly property bool isToday: view.calendar.sameDay(date, view.calendar.today)
           readonly property bool isSelected: view.calendar.sameDay(date, view.calendar.selected)
           readonly property bool hasEvents: view.calendar.hasEventsOn(date)
+          readonly property var dotColors: view.calendar.dotColorsOn(date)
           x: (slot % 7) * view.cell
           y: Math.floor(slot / 7) * month.rowHeight
           width: view.cell
@@ -954,16 +955,22 @@ Item {
           // A day with something on it, as Apple's month view: a dot under
           // the number, in the accent, or in the circle's text colour when
           // that day is the filled one.
-          Rectangle {
+          Row {
             visible: day.hasEvents
             anchors.horizontalCenter: parent.horizontalCenter
             y: dayCircle.y + dayCircle.height + 1.5
-            width: 3.5
-            height: 3.5
-            radius: width / 2
-            color: day.isSelected ? view.theme.accentText : view.accent
-            opacity: day.isSelected ? 1 : day.slot % 7 >= 5 ? 0.55 : 0.9
-            Behavior on color { MotionColorAnimation { theme: view.theme } }
+            spacing: 2
+            opacity: day.slot % 7 >= 5 && !day.isSelected ? 0.6 : 1
+            Repeater {
+              model: day.dotColors
+              delegate: Rectangle {
+                required property var modelData
+                width: 3.5
+                height: 3.5
+                radius: 1.75
+                color: modelData
+              }
+            }
           }
           MouseArea {
             id: dayMouse

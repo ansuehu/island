@@ -63,14 +63,19 @@ Addon {
       var day = new Date(start.getFullYear(), start.getMonth(), start.getDate())
       var last = new Date(end.getFullYear(), end.getMonth(), end.getDate())
       while (day <= last) {
-        days[day.getTime()] = true
+        var key = day.getTime(), list = days[key] || (days[key] = [])
+        if (list.length < 3 && list.every(function(c) { return String(c) !== String(e.color) })) list.push(e.color)
         day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
       }
     }
     return days
   }
   function hasEventsOn(day) {
-    return daysWithEvents[new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()] === true
+    return !!daysWithEvents[new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()]
+  }
+  // Up to three distinct event colours of the day, for the month's dots.
+  function dotColorsOn(day) {
+    return daysWithEvents[new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()] || []
   }
 
   // Today, and the day the view shows (both at midnight) and its month.
