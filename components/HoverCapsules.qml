@@ -260,10 +260,7 @@ Item {
         color: capsules.faint
       }
       TapHandler {
-        onTapped: {
-          capsules.calendar.selectToday()
-          capsules.host.view = "calendar"
-        }
+        onTapped: capsules.calendar.showEvent(capsules.nextEvent)
       }
     }
 
