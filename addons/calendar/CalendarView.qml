@@ -794,6 +794,30 @@ Item {
           onClicked: view.calendar.selectToday()
         }
       }
+      // Read the calendars again now; it spins while they load.
+      Text {
+        id: syncGlyph
+        width: 26
+        horizontalAlignment: Text.AlignHCenter
+        text: "󰑐"
+        color: syncMouse.containsMouse || view.calendar.fetching ? view.ink : view.inkMuted
+        font.family: view.theme.fontFamily
+        font.pixelSize: view.theme.px(14)
+        RotationAnimator on rotation {
+          from: 0; to: 360; duration: 900
+          loops: Animation.Infinite
+          running: view.calendar.fetching
+          onRunningChanged: if (!running) syncGlyph.rotation = 0
+        }
+        MouseArea {
+          id: syncMouse
+          anchors.fill: parent
+          anchors.margins: -3
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: view.calendar.retry()
+        }
+      }
       // A task or event for the selected day.
       Text {
         width: 26

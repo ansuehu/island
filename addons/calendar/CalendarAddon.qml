@@ -40,6 +40,7 @@ Addon {
   // Each calendar's last good reading, by URL, kept when a fetch fails.
   property var read: ({})
   property real fetchedAt: 0
+  readonly property bool fetching: fetcher.running
   // Every calendar's events: { title, start, end (ms, end exclusive),
   // allDay, color }.
   readonly property var events: {
