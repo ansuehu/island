@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../components"
+import Quickshell.Services.SystemTray
 
 // A compact Control Center with grouped switches, sliders, and notifications.
 // What the controls show and do is in Controls.qml, the grid and editing it
@@ -95,6 +96,8 @@ ColumnLayout {
       radius: 14
       color: trayMouse.containsMouse ? cc.well : cc.card
       Tooltip { theme: cc.host.theme; text: "System Tray" }
+      // Tray apps asking for attention, as a count on the corner.
+      readonly property int attention: SystemTray.items.values.filter(function(item) { return item.status === Status.NeedsAttention }).length
       Text {
         anchors.centerIn: parent
         text: "󰀻"
@@ -108,6 +111,24 @@ ColumnLayout {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: cc.host.view = "tray"
+      }
+      Rectangle {
+        visible: parent.attention > 0
+        x: parent.width - width * 0.7
+        y: -height * 0.3
+        width: Math.max(14, badgeText.implicitWidth + 8)
+        height: 14
+        radius: 7
+        color: cc.host.theme.system.red
+        Text {
+          id: badgeText
+          anchors.centerIn: parent
+          text: parent.parent.attention
+          color: "#ffffff"
+          font.family: cc.host.theme.textFontFamily
+          font.pixelSize: cc.host.theme.px(10)
+          font.weight: Font.Bold
+        }
       }
     }
     Rectangle {
