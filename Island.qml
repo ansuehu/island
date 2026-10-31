@@ -47,11 +47,28 @@ Item {
     function onRawEvent(event) {
       if (String(event && event.name) !== "screencast") return
       // "1,0": started, sharing a monitor; "1,1" a window; "0,…" stopped.
+      // Any screen capture sends these (the share view's own preview too),
+      // so whether a share is on is asked of PipeWire: the portal's stream.
       var parts = String(event.data || "").split(",")
-      var on = parts[0] === "1"
-      if (on && !root.screenSharing) root.shareStartedAt = Date.now()
-      root.screenSharing = on
-      root.shareKind = parts[1] === "1" ? "window" : "screen"
+      if (parts[0] === "1") root.pendingShareKind = parts[1] === "1" ? "window" : "screen"
+      shareCheckDelay.restart()
+    }
+  }
+  property string pendingShareKind: "screen"
+  Timer { id: shareCheckDelay; interval: 600; onTriggered: shareCheck.running = true }
+  Process {
+    id: shareCheck
+    command: ["python3", decodeURIComponent(String(Qt.resolvedUrl("views/share/share-app.py")).replace("file://", "")), "--active"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var on = String(text || "").trim() === "1"
+        if (on && !root.screenSharing) {
+          root.shareStartedAt = Date.now()
+          root.shareKind = root.pendingShareKind
+        }
+        root.screenSharing = on
+      }
     }
   }
   readonly property bool restingFree: resting && (!recordingPill || recordingStacked) && !addons.ongoing && !sharePill
