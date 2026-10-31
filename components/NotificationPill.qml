@@ -18,10 +18,12 @@ IslandPill {
   pillWidth: 440
   pillHeight: 84
   // The island's own banners act on a click (see Island.qml's showBanner);
-  // any other notification is dismissed.
+  // any other notification opens its app.
   function clicked(mouse) {
     if (row.islandUpdate) host.updateIsland()
     else if (row.islandSetupRetry) { host.dismissFeedback(); host.setup.install() }
+    // Anything else runs the sender's default action, or focuses its window.
+    else if (row.timestamp !== undefined) { host.dismissFeedback(); host.notifications.command("invokeKey", row) }
     else host.dismissPillNotification()
   }
 
