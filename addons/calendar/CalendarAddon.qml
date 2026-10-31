@@ -51,6 +51,27 @@ Addon {
     return all
   }
 
+  // The days with something on them, by the day's local midnight, for the
+  // month's dots (see CalendarView). An event counts on every day it covers.
+  readonly property var daysWithEvents: {
+    var days = {}
+    for (var i = 0; i < events.length; i++) {
+      var e = events[i]
+      var start = new Date(e.start)
+      var end = new Date(Math.max(e.start, e.end - 1))
+      var day = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+      var last = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+      while (day <= last) {
+        days[day.getTime()] = true
+        day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
+      }
+    }
+    return days
+  }
+  function hasEventsOn(day) {
+    return daysWithEvents[new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()] === true
+  }
+
   // Today, and the day the view shows (both at midnight) and its month.
   readonly property date today: {
     var now = host.clockDate
@@ -208,11 +229,12 @@ Addon {
   readonly property int yearMs: 366 * 24 * 3600 * 1000
   function parse(ics) {
     var lines = ics.replace(/\r?\n[ \t]/g, "").split(/\r?\n/)
-    var found = [], event = null
+    var found = [], event = null, calName = ""
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i]
       if (line === "BEGIN:VEVENT") { event = { EXDATE: [] }; continue }
       if (line === "END:VEVENT") { if (event) found.push(event); event = null; continue }
+      if (line.indexOf("X-WR-CALNAME:") === 0) { calName = plainText(line.slice(13)); continue }
       if (!event) continue
       var colon = line.indexOf(":")
       if (colon < 0) continue
@@ -236,7 +258,7 @@ Addon {
     var from = Date.now() - yearMs, to = Date.now() + 2 * yearMs
     var events = []
     found.forEach(function(e) {
-      var one = finish(e)
+      var one = finish(e, calName)
       if (!one) return
       if (!e.RRULE) {
         if (one.end >= from) events.push(one)
@@ -248,12 +270,12 @@ Addon {
       var length = one.end - one.start
       repeats(e.RRULE.value, one.start, to).forEach(function(start) {
         if (skip[start] || replaced[uid + "|" + start] || start + length < from) return
-        events.push({ title: one.title, start: start, end: start + length, allDay: one.allDay, hint: one.hint })
+        events.push(Object.assign({}, one, { start: start, end: start + length }))
       })
     })
     return events
   }
-  function finish(event) {
+  function finish(event, calendarName) {
     if (!event.DTSTART) return null
     if (event.STATUS && event.STATUS.value.toUpperCase() === "CANCELLED") return null
     var start = icsDate(event.DTSTART)
@@ -269,7 +291,11 @@ Addon {
       start: start.ms,
       end: Math.max(end.ms, start.ms),
       allDay: start.allDay,
-      hint: event.COLOR ? event.COLOR.value.trim() : ""
+      hint: event.COLOR ? event.COLOR.value.trim() : "",
+      calendar: calendarName || "",
+      location: event.LOCATION ? plainText(event.LOCATION.value) : "",
+      url: event.URL ? event.URL.value.trim() : "",
+      description: event.DESCRIPTION ? detailText(event.DESCRIPTION.value) : ""
     }
   }
 
@@ -402,6 +428,21 @@ Addon {
   }
   function plainText(text) {
     return text.replace(/\\([\;,nN])/g, function(all, c) { return c === "n" || c === "N" ? " " : c }).trim()
+  }
+  // A description for the detail card: the escapes undone with their line
+  // breaks kept, Google's HTML wrapper (and the links in it, which the Open
+  // button carries) dropped, and duplicate blank lines squeezed.
+  function detailText(text) {
+    return String(text)
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&#39;/g, "'")
+      .replace(/\\([\;,nN])/g, function(all, c) { return c === "n" || c === "N" ? "\n" : c })
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
   }
 
   // ---------- Reminders ----------

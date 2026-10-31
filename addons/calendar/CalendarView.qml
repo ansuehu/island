@@ -1,14 +1,20 @@
 import QtQuick
+import Quickshell.Io
 import "../../components"
 
 // The calendar view, as Apple's widget: on the left the selected day's
 // weekday, date, and events; on the right its month, Monday first, its weeks
 // spread over the same height. As in Apple's Calendar, today is a filled
 // accent circle while it's the day shown, and accent numbers once another
-// day is picked, that one in a grey circle. A day clicked shows its events,
-// as do ←/→ (a day) and ↑/↓ (a week); scrolling or the chevrons (shown on
-// hover) change the month, which slides in from that side. Esc closes; it
-// opens on today.
+// day is picked, that one in a grey circle; a day with events carries a dot
+// under its number. Hovering a day previews its agenda without selecting it,
+// an event opens its details, and a busy day's hidden events expand in
+// place. A day clicked shows its events, as do ←/→ (a day) and ↑/↓ (a week);
+// scrolling, dragging, or the chevrons (shown on hover) change the month,
+// which slides in from that side. The header's + composes a TickTick task or
+// a Google Calendar event for the selected day, and Today comes back to this
+// month. Esc steps out of a detail or the composer before closing. It opens
+// on today.
 Item {
   id: view
   required property var calendar
@@ -24,123 +30,297 @@ Item {
   readonly property int cell: 34
   // Six weeks' room always, so the island keeps its height from month to
   // month; a month of fewer weeks spreads them over it, as Apple's widget.
-  readonly property int gridHeight: 6 * 30
+  readonly property int gridHeight: 6 * 34
   readonly property int gridWidth: 7 * cell
-  // Three events fit beside the month; past that, two and a count of the
-  // rest, as Apple's widget.
-  readonly property int eventsShown: dayEvents.length > 3 ? 2 : 3
-  readonly property var dayEvents: view.calendar.eventsOn(view.calendar.selected)
+  // How tall the agenda grows before it scrolls, and the three events that
+  // fit beside the month; past that, two and a count of the rest, as Apple's
+  // widget.
+  readonly property int agendaMax: 168
+  readonly property int eventsShown: view.allDayEvents.length > 3 ? 2 : 3
+
+  // What the left pane shows besides the selected day: a hovered day, an
+  // event's details, or the composer.
+  property var preview: null
+  property var detail: null
+  property bool composing: false
+  property bool expanded: false
+  property string flash: ""
+  property string composeError: ""
+  // Set when a drag ends, so the release that follows doesn't pick a day.
+  property real lastDrag: 0
+
+  readonly property date shownDate: (view.detail || view.composing) ? view.calendar.selected : (view.preview ? view.preview : view.calendar.selected)
+  readonly property var allDayEvents: view.calendar.eventsOn(view.shownDate)
+  readonly property var dayEvents: view.expanded ? view.allDayEvents : view.allDayEvents.slice(0, view.eventsShown)
+  readonly property int hiddenCount: view.allDayEvents.length - view.dayEvents.length
+  readonly property bool offMonth: view.calendar.shownYear !== view.calendar.today.getFullYear()
+    || view.calendar.shownMonth !== view.calendar.today.getMonth()
 
   readonly property var weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
   readonly property var months: ["January", "February", "March", "April", "May", "June", "July",
     "August", "September", "October", "November", "December"]
+
+  // Where the TickTick plugin's own CLI lives: its quick add is the one write
+  // the island makes, so a task lands in the app the bar already uses.
+  readonly property string tickTickCli: view.host.home
+    + "/.config/omarchy/plugins/io.github.sotoaugusto.ticktick/bin/omarchy-ticktick"
 
   implicitHeight: Math.max(month.y + month.height, left.implicitHeight)
 
   onActiveChanged: {
     if (!active) return
     view.calendar.viewOpened()
+    view.preview = null
+    view.detail = null
+    view.composing = false
+    view.expanded = false
     Qt.callLater(function() { view.forceActiveFocus() })
   }
-  Keys.onEscapePressed: host.view = "rest"
-  Keys.onLeftPressed: view.calendar.shiftDay(-1)
-  Keys.onRightPressed: view.calendar.shiftDay(1)
-  Keys.onUpPressed: view.calendar.shiftDay(-7)
-  Keys.onDownPressed: view.calendar.shiftDay(7)
+  onPreviewChanged: view.expanded = false
+  onDetailChanged: if (view.detail) view.expanded = false
+  onComposingChanged: if (view.composing) {
+    view.composeError = ""
+    Qt.callLater(function() { titleField.focusInput() })
+  }
+
+  Keys.onEscapePressed: view.stepBack()
+  Keys.onLeftPressed: view.step(-1)
+  Keys.onRightPressed: view.step(1)
+  Keys.onUpPressed: view.step(-7)
+  Keys.onDownPressed: view.step(7)
+
+  // A day picked elsewhere (a click in the grid, an arrow key, the control
+  // center tile) closes a detail card; the composer stays, retargeted at the
+  // new day.
+  Connections {
+    target: view.calendar
+    function onSelectedChanged() {
+      view.preview = null
+      view.detail = null
+      view.expanded = false
+      if (view.composing) Qt.callLater(function() { titleField.focusInput() })
+    }
+  }
+
+  function step(by) {
+    if (view.composing) return
+    view.calendar.shiftDay(by)
+  }
+  function stepBack() {
+    if (view.composing) view.stopCompose()
+    else if (view.detail) view.closeDetail()
+    else view.host.view = "rest"
+  }
+  function openDetail(event) {
+    view.preview = null
+    view.detail = event
+    view.composing = false
+  }
+  function closeDetail() { view.detail = null }
+  function startCompose() {
+    view.detail = null
+    view.composing = true
+    titleField.clear()
+  }
+  function stopCompose() {
+    view.composing = false
+    view.composeError = ""
+  }
+
+  // "Wed 18 Nov"
+  function shortDate(day) {
+    return view.weekdays[day.getDay()].slice(0, 3) + " " + day.getDate() + " "
+      + view.months[day.getMonth()].slice(0, 3)
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n }
+  // "2026-11-18"
+  function stamp(day) {
+    return day.getFullYear() + "-" + view.pad(day.getMonth() + 1) + "-" + view.pad(day.getDate())
+  }
+  function googleDay(day) {
+    return "https://calendar.google.com/calendar/r/day/" + day.getFullYear()
+      + "/" + view.pad(day.getMonth() + 1) + "/" + view.pad(day.getDate())
+  }
+  function googleCompose(day, text) {
+    var from = day.getFullYear() + view.pad(day.getMonth() + 1) + view.pad(day.getDate())
+    var after = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
+    var to = after.getFullYear() + view.pad(after.getMonth() + 1) + view.pad(after.getDate())
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text="
+      + encodeURIComponent(String(text || "").trim()) + "&dates=" + from + "/" + to
+  }
+  // The feed's own link when it has one (TickTick puts the task's in the
+  // description), else the day in Google Calendar, which always resolves.
+  function eventLink(event) {
+    if (!event) return ""
+    if (event.url) return event.url
+    var found = String(event.description || "").match(/https?:\/\/[^\s<>"]+/)
+    if (found) return found[0]
+    return view.googleDay(new Date(event.start))
+  }
+  function linkLabel(event) {
+    var link = view.eventLink(event)
+    if (link.indexOf("ticktick.com") >= 0) return "Open in TickTick"
+    if (link.indexOf("calendar.google.com") >= 0) return "Open in Google Calendar"
+    return "Open link"
+  }
+  function descriptionText(event) {
+    if (!event) return ""
+    var text = String(event.description || "")
+    // A lone link is what the Open button carries, not prose.
+    return /^\s*https?:\/\/\S+\s*$/.test(text) ? "" : text
+  }
 
   // ---------- The day ----------
 
-  Column {
+  Item {
     id: left
     anchors.left: parent.left
     anchors.right: month.left
     anchors.rightMargin: 24
-    spacing: 0
-
-    Text {
-      text: view.weekdays[view.calendar.selected.getDay()].toUpperCase()
-      color: view.accent
-      font.family: view.theme.textFontFamily
-      font.pixelSize: view.theme.px(13)
-      font.weight: Font.Bold
-      font.letterSpacing: 0.4
-    }
-    Text {
-      text: view.calendar.selected.getDate()
-      color: view.ink
-      font.family: view.theme.textFontFamily
-      font.pixelSize: view.theme.px(52)
-      font.weight: Font.Light
-      font.letterSpacing: -1.5
-      font.features: { "tnum": 1 }
-    }
-    Item { width: 1; height: 8 }
+    implicitHeight: view.detail ? detailPane.implicitHeight
+      : view.composing ? composePane.implicitHeight
+      : agendaPane.implicitHeight
 
     Column {
+      id: agendaPane
       width: parent.width
-      spacing: 6
-      Repeater {
-        model: view.dayEvents.slice(0, view.eventsShown)
-        delegate: Rectangle {
-          required property var modelData
-          width: parent.width
-          height: eventText.implicitHeight + 12
-          radius: 8
-          color: view.theme.withAlpha(modelData.color, 0.18)
-          Rectangle {
-            x: 6
-            anchors.verticalCenter: parent.verticalCenter
-            width: 3
-            height: parent.height - 12
-            radius: 1.5
-            color: modelData.color
-          }
-          Column {
-            id: eventText
-            x: 15
-            width: parent.width - 21
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 1
-            Text {
+      visible: !view.detail && !view.composing
+      spacing: 0
+
+      Text {
+        text: view.weekdays[view.shownDate.getDay()].toUpperCase()
+        color: view.accent
+        font.family: view.theme.textFontFamily
+        font.pixelSize: view.theme.px(13)
+        font.weight: Font.Bold
+        font.letterSpacing: 0.4
+      }
+      Text {
+        text: view.shownDate.getDate()
+        opacity: view.preview ? 0.8 : 1
+        Behavior on opacity { MotionAnimation { theme: view.theme; pace: "standard"; curve: "fade" } }
+        color: view.ink
+        font.family: view.theme.textFontFamily
+        font.pixelSize: view.theme.px(52)
+        font.weight: Font.Light
+        font.letterSpacing: -1.5
+        font.features: { "tnum": 1 }
+      }
+      Item { width: 1; height: 8 }
+
+      Flickable {
+        id: agendaList
+        width: parent.width
+        height: Math.min(agendaColumn.implicitHeight, view.agendaMax)
+        contentWidth: width
+        contentHeight: agendaColumn.implicitHeight
+        clip: true
+        interactive: contentHeight > height
+        boundsBehavior: Flickable.StopAtBounds
+
+        Column {
+          id: agendaColumn
+          width: agendaList.width
+          spacing: 6
+          Repeater {
+            model: view.dayEvents
+            delegate: Rectangle {
+              required property var modelData
               width: parent.width
-              text: modelData.title
-              textFormat: Text.PlainText
-              elide: Text.ElideRight
-              color: Qt.lighter(modelData.color, 1.2)
-              font.family: view.theme.textFontFamily
-              font.pixelSize: view.theme.px(13)
-              font.weight: Font.Medium
-              font.letterSpacing: -0.1
-            }
-            Text {
-              width: parent.width
-              text: view.calendar.spanText(modelData)
-              color: view.theme.withAlpha(Qt.lighter(modelData.color, 1.2), 0.7)
-              font.family: view.theme.textFontFamily
-              font.letterSpacing: view.theme.tracking(view.theme.textFontFamily, view.theme.px(12))
-              font.pixelSize: view.theme.px(12)
-              font.weight: Font.Normal
-              font.features: { "tnum": 1 }
+              height: eventText.implicitHeight + 12
+              radius: 8
+              color: view.theme.withAlpha(modelData.color, eventHover.hovered ? 0.3 : 0.18)
+              Behavior on color { MotionColorAnimation { theme: view.theme } }
+              Rectangle {
+                x: 6
+                anchors.verticalCenter: parent.verticalCenter
+                width: 3
+                height: parent.height - 12
+                radius: 1.5
+                color: modelData.color
+              }
+              Column {
+                id: eventText
+                x: 15
+                width: parent.width - 21
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 1
+                Text {
+                  width: parent.width
+                  text: modelData.title
+                  textFormat: Text.PlainText
+                  elide: Text.ElideRight
+                  color: Qt.lighter(modelData.color, 1.2)
+                  font.family: view.theme.textFontFamily
+                  font.pixelSize: view.theme.px(13)
+                  font.weight: Font.Medium
+                  font.letterSpacing: -0.1
+                }
+                Text {
+                  width: parent.width
+                  text: view.calendar.spanText(modelData)
+                  color: view.theme.withAlpha(Qt.lighter(modelData.color, 1.2), 0.7)
+                  font.family: view.theme.textFontFamily
+                  font.letterSpacing: view.theme.tracking(view.theme.textFontFamily, view.theme.px(12))
+                  font.pixelSize: view.theme.px(12)
+                  font.weight: Font.Normal
+                  font.features: { "tnum": 1 }
+                }
+              }
+              HoverHandler { id: eventHover }
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: view.openDetail(modelData)
+              }
             }
           }
         }
       }
+
+      // The day's hidden events, opened in place (the list then scrolls).
       Text {
-        visible: view.dayEvents.length > view.eventsShown
-        readonly property int rest: view.dayEvents.length - view.eventsShown
-        text: rest + " more event" + (rest === 1 ? "" : "s")
-        color: view.inkMuted
+        visible: view.hiddenCount > 0
+        topPadding: 6
+        text: view.hiddenCount + " more event" + (view.hiddenCount === 1 ? "" : "s")
+        color: moreMouse.containsMouse ? view.ink : view.inkMuted
         font.family: view.theme.textFontFamily
         font.letterSpacing: view.theme.tracking(view.theme.textFontFamily, view.theme.px(12))
         font.pixelSize: view.theme.px(12)
         font.weight: Font.Medium
+        MouseArea {
+          id: moreMouse
+          anchors.fill: parent
+          anchors.topMargin: 6
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: view.expanded = true
+        }
+      }
+      Text {
+        visible: view.expanded && view.allDayEvents.length > view.eventsShown
+        topPadding: 6
+        text: "Show less"
+        color: lessMouse.containsMouse ? view.ink : view.inkMuted
+        font.family: view.theme.textFontFamily
+        font.letterSpacing: view.theme.tracking(view.theme.textFontFamily, view.theme.px(12))
+        font.pixelSize: view.theme.px(12)
+        font.weight: Font.Medium
+        MouseArea {
+          id: lessMouse
+          anchors.fill: parent
+          anchors.topMargin: 6
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: view.expanded = false
+        }
       }
       // Nothing that day, or why there's nothing to show.
       Text {
         id: notice
         readonly property string status: view.calendar.status
         readonly property bool actionable: status === "missing" || status === "offline"
-        visible: view.dayEvents.length === 0
+        visible: view.allDayEvents.length === 0
         width: parent.width
         wrapMode: Text.WordWrap
         text: status === "missing" ? "Add a calendar in Settings"
@@ -164,7 +344,362 @@ Item {
             : view.calendar.retry()
         }
       }
+      // The quick add's confirmation.
+      Row {
+        visible: view.flash !== ""
+        spacing: 6
+        Text {
+          height: 16
+          verticalAlignment: Text.AlignVCenter
+          text: "󰄬"
+          color: view.accent
+          font.family: view.theme.fontFamily
+          font.pixelSize: view.theme.px(13)
+        }
+        Text {
+          height: 16
+          verticalAlignment: Text.AlignVCenter
+          text: view.flash
+          color: view.inkMuted
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(12)
+          font.weight: Font.Medium
+        }
+      }
     }
+
+    // ---------- One event ----------
+
+    Item {
+      id: detailPane
+      width: parent.width
+      visible: !!view.detail
+      implicitHeight: detailColumn.implicitHeight
+
+      Column {
+        id: detailColumn
+        width: parent.width
+        spacing: 0
+
+        Row {
+          height: 20
+          spacing: 4
+          Text {
+            width: 18
+            text: "󰅁"
+            color: backMouse.containsMouse ? view.ink : view.accent
+            font.family: view.theme.fontFamily
+            font.pixelSize: view.theme.px(15)
+            MouseArea {
+              id: backMouse
+              anchors.fill: parent
+              anchors.margins: -4
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: view.closeDetail()
+            }
+          }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "BACK"
+            color: view.accent
+            font.family: view.theme.textFontFamily
+            font.pixelSize: view.theme.px(11)
+            font.weight: Font.Bold
+            font.letterSpacing: 0.4
+            MouseArea {
+              anchors.fill: parent
+              anchors.margins: -4
+              cursorShape: Qt.PointingHandCursor
+              onClicked: view.closeDetail()
+            }
+          }
+        }
+        Item { width: 1; height: 10 }
+
+        Text {
+          width: parent.width
+          text: view.detail ? view.detail.title : ""
+          color: view.ink
+          wrapMode: Text.Wrap
+          maximumLineCount: 3
+          elide: Text.ElideRight
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(17)
+          font.weight: Font.DemiBold
+          font.letterSpacing: -0.2
+        }
+        Item { width: 1; height: 5 }
+        Text {
+          width: parent.width
+          text: view.detail ? view.shortDate(new Date(view.detail.start)) + " · "
+            + view.calendar.spanText(view.detail) : ""
+          wrapMode: Text.Wrap
+          color: view.inkMuted
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(12)
+          font.weight: Font.Medium
+        }
+        Item { width: 1; height: 6; visible: !!(view.detail && view.detail.calendar) }
+        Row {
+          visible: !!(view.detail && view.detail.calendar)
+          height: 18
+          spacing: 6
+          Rectangle {
+            width: 7
+            height: 7
+            radius: 3.5
+            y: (parent.height - height) / 2
+            color: view.detail ? view.detail.color : "transparent"
+          }
+          Text {
+            width: detailPane.width - 13
+            height: parent.height
+            verticalAlignment: Text.AlignVCenter
+            text: view.detail && view.detail.calendar ? view.detail.calendar : ""
+            elide: Text.ElideRight
+            color: view.inkMuted
+            font.family: view.theme.textFontFamily
+            font.pixelSize: view.theme.px(11)
+            font.weight: Font.Medium
+          }
+        }
+        Text {
+          visible: !!(view.detail && view.detail.location)
+          width: parent.width
+          topPadding: 6
+          text: view.detail && view.detail.location ? "at " + view.detail.location : ""
+          wrapMode: Text.Wrap
+          color: view.inkMuted
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(12)
+          font.weight: Font.Medium
+        }
+        Flickable {
+          visible: view.descriptionText(view.detail) !== ""
+          width: parent.width
+          height: Math.min(description.implicitHeight + 8, 72)
+          contentWidth: width
+          contentHeight: description.implicitHeight
+          clip: true
+          interactive: contentHeight > height
+          boundsBehavior: Flickable.StopAtBounds
+          Text {
+            id: description
+            y: 4
+            width: parent.width
+            text: view.descriptionText(view.detail)
+            wrapMode: Text.Wrap
+            color: view.inkMuted
+            font.family: view.theme.textFontFamily
+            font.pixelSize: view.theme.px(12)
+            lineHeight: 1.15
+          }
+        }
+        Item { width: 1; height: 12 }
+        Rectangle {
+          width: openLabel.implicitWidth + 26
+          height: 30
+          radius: 15
+          color: openMouse.containsMouse ? Qt.lighter(view.accent, 1.1) : view.accent
+          Text {
+            id: openLabel
+            anchors.centerIn: parent
+            text: view.linkLabel(view.detail)
+            color: view.theme.accentText
+            font.family: view.theme.textFontFamily
+            font.pixelSize: view.theme.px(12)
+            font.weight: Font.DemiBold
+          }
+          MouseArea {
+            id: openMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+              var link = view.eventLink(view.detail)
+              if (link !== "") Qt.openUrlExternally(link)
+            }
+          }
+        }
+      }
+    }
+
+    // ---------- A new task ----------
+
+    Item {
+      id: composePane
+      width: parent.width
+      visible: view.composing
+      implicitHeight: composeColumn.implicitHeight
+
+      Column {
+        id: composeColumn
+        width: parent.width
+        spacing: 0
+
+        Row {
+          height: 20
+          spacing: 4
+          Text {
+            width: 18
+            text: "󰅁"
+            color: closeMouse.containsMouse ? view.ink : view.accent
+            font.family: view.theme.fontFamily
+            font.pixelSize: view.theme.px(15)
+            MouseArea {
+              id: closeMouse
+              anchors.fill: parent
+              anchors.margins: -4
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: view.stopCompose()
+            }
+          }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "CANCEL"
+            color: view.accent
+            font.family: view.theme.textFontFamily
+            font.pixelSize: view.theme.px(11)
+            font.weight: Font.Bold
+            font.letterSpacing: 0.4
+            MouseArea {
+              anchors.fill: parent
+              anchors.margins: -4
+              cursorShape: Qt.PointingHandCursor
+              onClicked: view.stopCompose()
+            }
+          }
+        }
+        Item { width: 1; height: 10 }
+        Text {
+          text: "NEW TASK"
+          color: view.ink
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(15)
+          font.weight: Font.DemiBold
+        }
+        Text {
+          topPadding: 1
+          text: "TickTick · " + view.shortDate(view.calendar.selected)
+          color: view.inkMuted
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(12)
+          font.weight: Font.Medium
+        }
+        Item { width: 1; height: 10 }
+        SearchField {
+          id: titleField
+          width: parent.width
+          host: view.host
+          placeholder: "Task title…"
+          onKeyPressed: function(event) {
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+              event.accepted = true
+              view.addTask(titleField.text)
+            } else if (event.key === Qt.Key_Escape) {
+              event.accepted = true
+              view.stopCompose()
+            }
+          }
+        }
+        Item { width: 1; height: 10 }
+        Rectangle {
+          width: addLabel.implicitWidth + 28
+          height: 30
+          radius: 15
+          color: adder.running ? view.theme.withAlpha(view.accent, 0.6)
+            : addTaskMouse.containsMouse ? Qt.lighter(view.accent, 1.1) : view.accent
+          Text {
+            id: addLabel
+            anchors.centerIn: parent
+            text: adder.running ? "Adding…" : "Add task"
+            color: view.theme.accentText
+            font.family: view.theme.textFontFamily
+            font.pixelSize: view.theme.px(12)
+            font.weight: Font.DemiBold
+          }
+          MouseArea {
+            id: addTaskMouse
+            anchors.fill: parent
+            enabled: !adder.running
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: view.addTask(titleField.text)
+          }
+        }
+        Text {
+          topPadding: 8
+          text: "or a Google Calendar event"
+          color: googleMouse.containsMouse ? view.ink : view.inkMuted
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(11)
+          font.weight: Font.Medium
+          MouseArea {
+            id: googleMouse
+            anchors.fill: parent
+            anchors.topMargin: 8
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: Qt.openUrlExternally(view.googleCompose(view.calendar.selected, titleField.text))
+          }
+        }
+        Text {
+          visible: view.composeError !== ""
+          width: parent.width
+          topPadding: 8
+          text: view.composeError
+          wrapMode: Text.Wrap
+          color: view.theme.system.red
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(11)
+          font.weight: Font.Medium
+        }
+      }
+    }
+  }
+
+  // The write itself, through the TickTick plugin's CLI. Its answer is JSON
+  // on success and a plain message on failure.
+  Process {
+    id: adder
+    property string title: ""
+    property string due: ""
+    command: [view.tickTickCli, "add", adder.title, "--due", adder.due]
+    stderr: StdioCollector { id: adderError; waitForEnd: true }
+    onExited: function(code) {
+      if (code !== 0) {
+        var message = String(adderError.text || "").trim()
+        view.composeError = message !== "" ? message : "Couldn't add the task"
+        return
+      }
+      view.composing = false
+      view.flash = "Added to TickTick"
+      flashTimer.restart()
+      // The feed lags the write by a moment; read it again soon.
+      refreshTimer.restart()
+    }
+  }
+  Timer {
+    id: flashTimer
+    interval: 2600
+    onTriggered: view.flash = ""
+  }
+  Timer {
+    id: refreshTimer
+    interval: 5000
+    onTriggered: view.calendar.retry()
+  }
+
+  function addTask(text) {
+    var title = String(text || "").trim()
+    if (title === "") { view.composeError = "Type a title first"; return }
+    if (adder.running) return
+    view.composeError = ""
+    adder.title = title
+    adder.due = view.stamp(view.calendar.selected)
+    adder.running = true
   }
 
   // ---------- The month ----------
@@ -186,6 +721,7 @@ Item {
     property int lastIndex: view.calendar.shownYear * 12 + view.calendar.shownMonth
     readonly property int index: view.calendar.shownYear * 12 + view.calendar.shownMonth
     onIndexChanged: {
+      view.preview = null
       var by = index > lastIndex ? 1 : -1
       lastIndex = index
       slide.stop()
@@ -213,15 +749,54 @@ Item {
     Row {
       anchors.right: parent.right
       anchors.verticalCenter: monthName.verticalCenter
-      opacity: monthHover.hovered ? 1 : 0
+      spacing: 0
+      opacity: monthHover.hovered || view.offMonth ? 1 : 0.5
       Behavior on opacity { MotionAnimation { theme: view.theme; pace: "fade"; curve: "fade" } }
+
+      // Back to this month, when looking at another.
+      Text {
+        visible: view.offMonth
+        width: 34
+        horizontalAlignment: Text.AlignHCenter
+        text: "TODAY"
+        color: todayMouse.containsMouse ? view.ink : view.accent
+        font.family: view.theme.textFontFamily
+        font.pixelSize: view.theme.px(10)
+        font.weight: Font.Bold
+        font.letterSpacing: 0.3
+        MouseArea {
+          id: todayMouse
+          anchors.fill: parent
+          anchors.margins: -2
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: view.calendar.selectToday()
+        }
+      }
+      // A task or event for the selected day.
+      Text {
+        width: 26
+        horizontalAlignment: Text.AlignHCenter
+        text: "󰐕"
+        color: addMouse.containsMouse ? view.ink : view.inkMuted
+        font.family: view.theme.fontFamily
+        font.pixelSize: view.theme.px(15)
+        MouseArea {
+          id: addMouse
+          anchors.fill: parent
+          anchors.margins: -3
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: view.startCompose()
+        }
+      }
       Repeater {
         model: [{ glyph: "󰅁", by: -1 }, { glyph: "󰅂", by: 1 }]
         delegate: Text {
           scale: chevronMouse.pressed ? 0.88 : 1
           Behavior on scale { MotionAnimation { theme: view.theme; pace: chevronMouse.pressed ? "press" : "standard" } }
           required property var modelData
-          width: view.cell
+          width: 26
           horizontalAlignment: Text.AlignHCenter
           text: modelData.glyph
           color: chevronMouse.containsMouse ? view.ink : view.inkMuted
@@ -230,7 +805,7 @@ Item {
           MouseArea {
             id: chevronMouse
             anchors.fill: parent
-            anchors.margins: -4
+            anchors.margins: -3
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: view.calendar.shiftMonth(parent.modelData.by)
@@ -265,6 +840,25 @@ Item {
       width: parent.width
       height: view.gridHeight
 
+      // A drag moves a day per column, so a flick crosses a week and spills
+      // into the next month. A click that never drags stays a click.
+      DragHandler {
+        id: gridDrag
+        target: null
+        xAxis.enabled: true
+        yAxis.enabled: false
+        dragThreshold: 12
+        property real travelled: 0
+        onActiveChanged: {
+          if (active) { travelled = 0; return }
+          var by = Math.round(-travelled / view.cell)
+          if (by === 0) return
+          view.lastDrag = Date.now()
+          view.calendar.shiftDay(by)
+        }
+        onActiveTranslationChanged: if (active) travelled = activeTranslation.x
+      }
+
       Repeater {
         model: month.length
         delegate: Item {
@@ -274,16 +868,19 @@ Item {
           readonly property date date: new Date(view.calendar.shownYear, view.calendar.shownMonth, index + 1)
           readonly property bool isToday: view.calendar.sameDay(date, view.calendar.today)
           readonly property bool isSelected: view.calendar.sameDay(date, view.calendar.selected)
+          readonly property bool hasEvents: view.calendar.hasEventsOn(date)
           x: (slot % 7) * view.cell
           y: Math.floor(slot / 7) * month.rowHeight
           width: view.cell
           height: month.rowHeight
 
           Rectangle {
+            id: dayCircle
             anchors.centerIn: parent
-            width: 28
-            height: 28
-            radius: 14
+            anchors.verticalCenterOffset: -2
+            width: 26
+            height: 26
+            radius: 13
             color: day.isSelected ? (day.isToday ? view.accent : Qt.rgba(1, 1, 1, 0.2))
               : dayMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
             scale: day.isSelected ? 1 : 0.9
@@ -292,6 +889,7 @@ Item {
           }
           Text {
             anchors.centerIn: parent
+            anchors.verticalCenterOffset: -2
             text: day.index + 1
             color: day.isToday ? (day.isSelected ? view.theme.accentText : view.accent)
               : day.slot % 7 >= 5 ? view.inkMuted : view.ink
@@ -301,23 +899,54 @@ Item {
             font.weight: day.isToday ? Font.DemiBold : Font.Normal
             font.features: { "tnum": 1 }
           }
+          // A day with something on it, as Apple's month view: a dot under
+          // the number, in the accent, or in the circle's text colour when
+          // that day is the filled one.
+          Rectangle {
+            visible: day.hasEvents
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: dayCircle.y + dayCircle.height + 1.5
+            width: 3.5
+            height: 3.5
+            radius: width / 2
+            color: day.isSelected ? view.theme.accentText : view.accent
+            opacity: day.isSelected ? 1 : day.slot % 7 >= 5 ? 0.55 : 0.9
+            Behavior on color { MotionColorAnimation { theme: view.theme } }
+          }
           MouseArea {
             id: dayMouse
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: view.calendar.select(day.date)
+            onContainsMouseChanged: {
+              if (containsMouse) view.preview = day.date
+              else if (view.preview && view.calendar.sameDay(view.preview, day.date)) view.preview = null
+            }
+            onClicked: {
+              // The release after a drag isn't a pick.
+              if (Date.now() - view.lastDrag < 250) return
+              view.calendar.select(day.date)
+            }
           }
         }
       }
     }
 
-    // A notch of the wheel is a month.
+    // A notch of the wheel is a month; sideways, a day.
     WheelHandler {
       property real held: 0
+      property real heldX: 0
       acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
       onWheel: function(event) {
-        held += event.angleDelta.y
+        var dx = event.angleDelta.x, dy = event.angleDelta.y
+        if (Math.abs(dx) > Math.abs(dy)) {
+          heldX += dx
+          if (Math.abs(heldX) < 120) return
+          view.calendar.shiftDay(heldX > 0 ? 1 : -1)
+          heldX = 0
+          return
+        }
+        held += dy
         if (Math.abs(held) < 120) return
         view.calendar.shiftMonth(held > 0 ? -1 : 1)
         held = 0
