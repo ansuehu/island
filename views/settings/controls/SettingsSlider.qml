@@ -8,6 +8,7 @@ Item {
   property real from: 0
   property real to: 1
   property real value: 0
+  property real step: 0.05
   signal moved(real value)
   implicitWidth: view.controlWidth
   implicitHeight: 22
@@ -27,7 +28,7 @@ Item {
     anchors.fill: parent
     function setFrom(x) {
       var f = Math.max(0, Math.min(1, (x - 9) / (slider.width - 18)))
-      slider.moved(Math.round((slider.from + f * (slider.to - slider.from)) * 20) / 20)
+      slider.moved(Math.round((slider.from + f * (slider.to - slider.from)) / slider.step) * slider.step)
     }
     onPressed: function(m) { setFrom(m.x) }
     onPositionChanged: function(m) { if (pressed) setFrom(m.x) }

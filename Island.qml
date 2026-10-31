@@ -39,7 +39,7 @@ Item {
   // The live-activity pills' height, and the resting clock's.
   readonly property real pillHeight: settings.notch ? 40 : 44
   // Room the top bar mode keeps clear: the pill, and its gap from the edge.
-  readonly property real reservedTop: pillHeight * settings.pillScale + (settings.notch ? 0 : 8) + 4
+  readonly property real reservedTop: pillHeight * settings.pillScale + (settings.notch ? 0 : settings.topGap) + settings.barGap
   readonly property real clockHeight: clockStacked ? (settings.notch ? 40 : 42) : (settings.notch ? 36 : 40)
 
   readonly property var nowPlaying: nowPlayingData
@@ -609,7 +609,7 @@ Item {
           // Once revealed it reaches down past the island, so the gap above
           // the floating pill still counts as hovering and doesn't hide it.
           height: !window.revealArmed ? 0
-            : window.edgeRevealed ? (root.settings.notch ? 0 : 8) + island.height : 4
+            : window.edgeRevealed ? (root.settings.notch ? 0 : root.settings.topGap) + island.height : 4
           visible: height > 0
 
           HoverHandler {
@@ -674,7 +674,7 @@ Item {
           x: (parent.width - width) / 2
           // On a spring like the shape, so hiding and showing again quickly
           // turns around smoothly.
-          MotionSpring { id: ySpring; theme: root.theme; pace: "standard"; target: window.islandHidden ? -island.height - 20 : root.settings.notch ? 0 : 8 }
+          MotionSpring { id: ySpring; theme: root.theme; pace: "standard"; target: window.islandHidden ? -island.height - 20 : root.settings.notch ? 0 : root.settings.topGap }
           y: ySpring.value
           readonly property Item activeSurface: views.surfaceFor(root.view)
           readonly property Item activePill: pills.active
@@ -772,7 +772,7 @@ Item {
             bounce: island.squished ? 0 : 0.35
             target: island.squished ? 100 : 0
           }
-          scale: (root.surfaceOpen ? 1 : root.settings.pillScale) * (root.settings.notch ? 1.0 : (1 + liftSpring.value * 0.00018 - pressSpring.value * 0.0003))
+          scale: (root.surfaceOpen ? 1 - (1 - root.settings.pillScale) * 0.4 : root.settings.pillScale) * (root.settings.notch ? 1.0 : (1 + liftSpring.value * 0.00018 - pressSpring.value * 0.0003))
           // With the notch the island hangs from the top edge, so it scales from there.
           transformOrigin: root.settings.notch || root.settings.pillScale < 1 ? Item.Top : Item.Center
           HoverHandler { id: clockHover; enabled: root.view === "rest" }

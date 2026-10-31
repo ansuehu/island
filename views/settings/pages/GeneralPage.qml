@@ -89,13 +89,43 @@ ColumnLayout {
       icon: "󰩨"
       iconTint: page.system.orange
       label: "Pill size"
-      detail: "Shrinks the island while it rests; open views stay full size"
+      detail: "Scales the island; open views shrink about half as much"
       SettingsSlider {
         view: page.view
         from: 0.6
         to: 1
         value: page.view.settings.pillScale
         onMoved: function(v) { page.view.settings.pillScale = v }
+      }
+    }
+    SettingsRow {
+      view: page.view
+      icon: "󰁝"
+      iconTint: page.system.cyan
+      label: "Top margin"
+      detail: "Gap between the screen edge and the island (not in notch style)"
+      SettingsSlider {
+        view: page.view
+        from: 0
+        to: 32
+        step: 1
+        value: page.view.settings.topGap
+        onMoved: function(v) { page.view.settings.topGap = v }
+      }
+    }
+    SettingsRow {
+      view: page.view
+      icon: "󰁅"
+      iconTint: page.system.cyan
+      label: "Bottom margin"
+      detail: "Extra space between the island and windows in top bar mode"
+      SettingsSlider {
+        view: page.view
+        from: 0
+        to: 32
+        step: 1
+        value: page.view.settings.barGap
+        onMoved: function(v) { page.view.settings.barGap = v }
       }
     }
     SettingsRow {

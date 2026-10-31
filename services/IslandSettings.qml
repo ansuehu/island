@@ -49,6 +49,8 @@ Item {
       property bool notch: false
       property bool reserveTop: false
       property real pillScale: 1
+      property real topGap: 8
+      property real barGap: 4
       property bool downloads: true
       property bool clipboard: true
       property bool screenRecordingActivity: true
