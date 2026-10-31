@@ -144,30 +144,22 @@ Item {
   // options out) the next time it's shown; both are cleared once taken.
   property string settingsPage: ""
   property string settingsAddon: ""
-  // Settings stepping aside to show the resting pill: its capsules for a
-  // moment after they're rearranged, or a test banner until it's gone; then
-  // Settings comes back on the same page.
-  property bool capsulePeek: false
-  property string returnToSettings: ""
-  function peekCapsules() {
-    returnToSettings = settingsPage || "General"
-    capsulePeek = true
-    view = "rest"
-    peekTimer.restart()
+  // Settings, open, lowered under a stand-in of the resting pill: its
+  // capsules while they're being arranged ("capsules"), or a test banner
+  // ("banner"); the island itself is the Settings panel then, so the stand-in
+  // shows what it would look like.
+  property string previewKind: ""
+  readonly property bool previewing: previewKind !== "" && view === "settings"
+  function preview(kind, ms) {
+    previewKind = kind
+    previewTimer.interval = ms || 3000
+    previewTimer.restart()
   }
-  Timer {
-    id: peekTimer
-    interval: 2500
-    onTriggered: {
-      root.capsulePeek = false
-      root.backToSettings()
-    }
+  function holdPreview(kind) {
+    previewKind = kind
+    previewTimer.stop()
   }
-  function backToSettings() {
-    var page = returnToSettings
-    returnToSettings = ""
-    if (page !== "" && view === "rest") openSettings(page)
-  }
+  Timer { id: previewTimer; onTriggered: root.previewKind = "" }
   function openSettings(page, addonId) {
     settingsPage = page || ""
     settingsAddon = addonId || ""
@@ -280,6 +272,7 @@ Item {
   function surfaceOpenFor(v) { return surfaceNames.indexOf(v) !== -1 }
 
   onViewChanged: {
+    if (view !== "settings") previewKind = ""
     if (view === "rest" && updateAnnouncePending) Qt.callLater(announceUpdate)
     surfaceContentReady = false
     if (surfaceOpenFor(view)) surfaceRevealTimer.restart()
@@ -422,7 +415,6 @@ Item {
     onTriggered: {
       if (root.view === "feedback") root.view = "rest"
       root.feedbackKind = ""
-      if (!root.capsulePeek) root.backToSettings()
     }
   }
 
@@ -560,6 +552,8 @@ Item {
       return root.view
     }
     function toggle(): string { return root.toggleView("controls") }
+    // Settings' stand-in pill ("capsules" or "banner"), for a few seconds.
+    function preview(kind: string): string { root.preview(kind, 4000); return root.previewKind }
     function themes(): string { return root.toggleView("themes") }
     function wallpapers(): string { return root.toggleView("wallpapers") }
     function apps(): string { return root.toggleView("apps") }
@@ -758,11 +752,72 @@ Item {
 
         // Hovering the resting island splits the bar's items into capsules
         // beside it (see HoverCapsules).
+        // The stand-in resting pill above lowered Settings (see previewKind).
+        Rectangle {
+          id: previewPill
+          readonly property bool banner: root.previewKind === "banner"
+          readonly property bool compactBanner: root.settings.notificationStyle === "compact"
+          visible: root.previewing
+          width: banner ? (compactBanner ? 400 : 440) : 100 + island.clockExtra
+          height: banner ? (compactBanner ? root.pillHeight : 84) : root.clockHeight
+          x: (parent.width - width) / 2
+          y: root.settings.notch ? 0 : root.settings.topGap
+          scale: banner ? 1 - (1 - root.settings.pillScale) * 0.4 : root.settings.pillScale
+          transformOrigin: Item.Top
+          radius: height / 2
+          color: "#000000"
+          border.width: 1
+          border.color: root.theme.fill("raised")
+          Text {
+            visible: !previewPill.banner
+            anchors.centerIn: parent
+            text: root.clockText
+            color: root.theme.text
+            font.family: root.theme.textFontFamily
+            font.pixelSize: root.theme.px(14)
+            font.weight: Font.DemiBold
+          }
+          Row {
+            visible: previewPill.banner
+            anchors.left: parent.left
+            anchors.leftMargin: previewPill.compactBanner ? 7 : 16
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 10
+            Rectangle {
+              width: previewPill.compactBanner ? previewPill.height - 12 : 40
+              height: width
+              radius: previewPill.compactBanner ? width / 2 : 11
+              color: root.theme.accent
+              anchors.verticalCenter: parent.verticalCenter
+              Text { anchors.centerIn: parent; text: "󰂚"; color: root.theme.accentText; font.family: root.theme.fontFamily; font.pixelSize: 18 }
+            }
+            Column {
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: 2
+              Text {
+                text: previewPill.compactBanner ? "<b>Test notification</b>&nbsp;&nbsp;<font color=\"#b8ffffff\">How a banner looks</font>" : "Test notification"
+                textFormat: previewPill.compactBanner ? Text.StyledText : Text.PlainText
+                color: "#ffffff"
+                font.family: root.theme.textFontFamily
+                font.pixelSize: root.theme.px(previewPill.compactBanner ? 13 : 15)
+                font.weight: previewPill.compactBanner ? Font.Normal : Font.DemiBold
+              }
+              Text {
+                visible: !previewPill.compactBanner
+                text: "This is how a banner looks with your settings"
+                color: Qt.rgba(1, 1, 1, 0.72)
+                font.family: root.theme.textFontFamily
+                font.pixelSize: root.theme.px(13)
+              }
+            }
+          }
+        }
+
         HoverCapsules {
           id: hoverCapsules
           host: root
-          island: island
-          shown: island.capsulesShown && !window.islandHidden
+          island: root.previewing && root.previewKind === "capsules" ? previewPill : island
+          shown: (island.capsulesShown || (root.previewing && root.previewKind === "capsules")) && !window.islandHidden
           anchors.fill: parent
           // Under the island, so the capsules can start tucked beneath it.
           z: -1
@@ -776,7 +831,7 @@ Item {
           x: (parent.width - width) / 2
           // On a spring like the shape, so hiding and showing again quickly
           // turns around smoothly.
-          MotionSpring { id: ySpring; theme: root.theme; pace: "standard"; target: window.islandHidden ? -island.height - 20 : root.settings.notch ? 0 : root.settings.topGap }
+          MotionSpring { id: ySpring; theme: root.theme; pace: "standard"; target: window.islandHidden ? -island.height - 20 : (root.settings.notch ? 0 : root.settings.topGap) + (root.previewing ? previewPill.height * previewPill.scale + 10 : 0) }
           y: ySpring.value
           readonly property Item activeSurface: views.surfaceFor(root.view)
           readonly property Item activePill: pills.active
@@ -838,7 +893,7 @@ Item {
           }
           readonly property bool hasNonMediaActivePill: pills.active !== null && pills.active !== mediaPillItem
           readonly property bool isGlanceExpanded: island.glanceActive && (root.hoverMode === "expand") && island.hasGlanceItems && root.restingFree && !root.downloadPill && !island.hasNonMediaActivePill
-          readonly property bool capsulesShown: (root.capsulePeek || ((island.capsulesActive || root.hoverMode === "always") && root.capsuleMode)) && (root.resting || root.volumePill)
+          readonly property bool capsulesShown: (island.capsulesActive || root.hoverMode === "always") && root.capsuleMode && (root.resting || root.volumePill)
           // How much wider than a bare time the chosen clock format is; the
           // resting pill and the pills that keep the clock in the middle grow by it.
           readonly property real clockExtra: Math.max(0, Math.ceil(clockLabel.advanceWidth || clockMetrics.advanceWidth) + 56 - 100)

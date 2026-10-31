@@ -17,17 +17,13 @@ ColumnLayout {
     SettingsRow {
       view: page.view
       label: "Preview"
-      detail: "Closes Settings and sends a notification with buttons, to see the banner as it is"
+      detail: "Shows the banner above Settings, in your banner style"
       SettingsButton {
         view: page.view
         label: "Send Test Notification"
-        onClicked: {
-          // Back to this page once the banner's gone.
-          page.view.host.returnToSettings = "Notifications"
-          page.view.host.view = "rest"
-          // A moment for Settings to close, or the banner has nowhere to show.
-          Quickshell.execDetached(["sh", "-c", "sleep 0.4; notify-send -a Island -A 'ok=Looks good' 'Test notification' 'This is how a banner looks with your settings. Hover it, or try its buttons.'"])
-        }
+        // Settings stays; it lowers under a stand-in of the banner as your
+        // style draws it.
+        onClicked: page.view.host.preview("banner", 5000)
       }
     }
     SettingsRow {
