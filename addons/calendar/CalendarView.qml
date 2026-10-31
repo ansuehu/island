@@ -682,6 +682,7 @@ Item {
   Process {
     id: adder
     property var args: []
+    property var parsed: null
     command: [view.tickTickCli].concat(adder.args)
     stderr: StdioCollector { id: adderError; waitForEnd: true }
     onExited: function(code) {
@@ -691,6 +692,7 @@ Item {
         return
       }
       view.composing = false
+      if (adder.parsed) view.calendar.addPending(adder.parsed.title, adder.parsed.due, adder.parsed.time)
       view.flash = "Added to TickTick"
       flashTimer.restart()
       // TickTick's feed trails a write by up to a minute; read it every 15 s
@@ -721,6 +723,12 @@ Item {
     var parsed = view.grammar.item ? view.grammar.item.parse(text)
       : { title: String(text || "").trim(), due: "", dueGiven: false, time: "", priority: 0, tags: [] }
     if (!parsed.dueGiven) parsed.due = view.stamp(view.calendar.selected)
+    // The CLI takes the day words too; the calendar wants the date.
+    var shift = { yesterday: -1, today: 0, tomorrow: 1 }[String(parsed.due).toLowerCase()]
+    if (shift !== undefined) {
+      var now = view.calendar.today
+      parsed.due = view.stamp(new Date(now.getFullYear(), now.getMonth(), now.getDate() + shift))
+    }
     return parsed
   }
   function addTask(text) {
@@ -734,6 +742,7 @@ Item {
     if (parsed.priority > 0) args = args.concat(["--priority", String(parsed.priority)])
     if (parsed.tags.length > 0) args = args.concat(["--tags", parsed.tags.join(",")])
     adder.args = args
+    adder.parsed = parsed
     adder.running = true
   }
 

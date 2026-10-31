@@ -51,7 +51,34 @@ Addon {
       var own = read[urls[i]] || []
       for (var j = 0; j < own.length; j++) all.push(Object.assign({ color: colorFor(own[j]) }, own[j]))
     }
+    // Tasks just added from the island, until the feed has them.
+    for (var k = 0; k < pending.length; k++) {
+      var p = pending[k]
+      var arrived = all.some(function(e) { return e.title === p.title && sameDay(new Date(e.start), new Date(p.start)) })
+      if (!arrived) all.push(Object.assign({ color: colorFor(p) }, p))
+    }
     return all
+  }
+  // Shown at once after a quick add (TickTick's feed lags it by about a
+  // minute); each is dropped once the feed has it, or after ten minutes.
+  property var pending: []
+  function addPending(title, due, time) {
+    var parts = String(due).split("-")
+    var day = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    var start = day.getTime(), end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime(), allDay = true
+    var m = /^(\d{1,2}):(\d{2})(?:-(\d{1,2}):(\d{2}))?$/.exec(String(time || ""))
+    if (m) {
+      allDay = false
+      start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), +m[1], +m[2]).getTime()
+      end = m[3] ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), +m[3], +m[4]).getTime() : start
+    }
+    pending = pending.concat([{ title: title, start: start, end: end, allDay: allDay, calendar: "TickTick", hint: "", addedAt: Date.now() }])
+  }
+  Timer {
+    interval: 60000
+    repeat: true
+    running: calendarAddon.pending.length > 0
+    onTriggered: calendarAddon.pending = calendarAddon.pending.filter(function(p) { return Date.now() - p.addedAt < 10 * 60000 })
   }
 
   // The days with something on them, by the day's local midnight, for the
