@@ -91,7 +91,7 @@ IslandPill {
         id: age
         anchors.right: parent.right
         anchors.baseline: title.baseline
-        text: host.notifications.age(pill.row.timestamp)
+        text: host.notificationRun > 1 ? host.notificationRun + " new" : host.notifications.age(pill.row.timestamp)
         textFormat: Text.PlainText
         color: Qt.rgba(1, 1, 1, 0.45)
         font.family: host.theme.textFontFamily
@@ -150,7 +150,7 @@ IslandPill {
             id: fullAge
             anchors.right: parent.right
             anchors.baseline: fullTitle.baseline
-            text: host.notifications.age(pill.row.timestamp)
+            text: host.notificationRun > 1 ? host.notificationRun + " new" : host.notifications.age(pill.row.timestamp)
             color: Qt.rgba(1, 1, 1, 0.45)
             font.family: host.theme.textFontFamily
             font.pixelSize: host.theme.px(12)

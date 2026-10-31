@@ -413,6 +413,11 @@ Item {
     home: root.home
     historyVisible: root.view === "controls"
     onArrived: function(row) {
+      // Messages from the same app and chat while its banner is up stack
+      // into it: the newest shows, with how many came.
+      var group = String(row.app || "") + "|" + String(row.summary || "")
+      root.notificationRun = root.notificationPill && group === root.notificationGroup ? root.notificationRun + 1 : 1
+      root.notificationGroup = group
       if (!root.surfaceOpen && !root.notificationSilenced(row)) root.showFeedback(String(row.summary || row.app || "Notification"), root.settings.bannerSeconds * 1000, "notification")
     }
   }
@@ -428,6 +433,8 @@ Item {
     view = "rest"
   }
   // A hovered banner stays until the pointer leaves it.
+  property int notificationRun: 1
+  property string notificationGroup: ""
   function holdFeedback(hold) {
     if (hold) feedbackTimer.stop()
     else if (view === "feedback") feedbackTimer.restart()
