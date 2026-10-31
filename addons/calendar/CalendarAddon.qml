@@ -242,15 +242,25 @@ Addon {
   property var doneTasks: ({})
   property string taskError: ""
   // `event` is a task from the feed; `action` "complete" or "delete".
+  // One write at a time (each syncs, which can take seconds); the others
+  // wait their turn instead of being dropped.
+  property var taskQueue: []
   function taskAction(event, action) {
-    if (!event || !event.taskId || taskRunner.running) return
+    if (!event || !event.taskId) return
     var key = event.taskId + "|" + event.start
     var next = Object.assign({}, doneTasks)
     next[key] = Date.now()
     doneTasks = next
     taskError = ""
-    taskRunner.taskId = key
-    taskRunner.command = [tickTickCli, action, event.taskId]
+    taskQueue = taskQueue.concat([{ key: key, command: [tickTickCli, action, event.taskId] }])
+    runNextTask()
+  }
+  function runNextTask() {
+    if (taskRunner.running || taskQueue.length === 0) return
+    var job = taskQueue[0]
+    taskQueue = taskQueue.slice(1)
+    taskRunner.taskId = job.key
+    taskRunner.command = job.command
     taskRunner.running = true
   }
   Process {
@@ -264,9 +274,10 @@ Addon {
         delete next[taskRunner.taskId]
         calendarAddon.doneTasks = next
         calendarAddon.taskError = String(taskRunnerError.text || "").trim() || "TickTick didn't take it"
-        return
+      } else {
+        calendarAddon.catchUp()
       }
-      calendarAddon.catchUp()
+      calendarAddon.runNextTask()
     }
   }
   // Read the feeds every 15 s for two minutes, until a write shows there.
