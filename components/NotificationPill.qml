@@ -15,8 +15,13 @@ IslandPill {
   readonly property string iconSource: host.notifications.iconSource(host.notifications.last, imageFailed)
   readonly property var brand: host.notifications.brand(row)
   shown: host.notificationPill
-  pillWidth: 440
-  pillHeight: 84
+  // Compact: one line, as tall as the resting pill (Settings → Notifications).
+  readonly property bool compact: host.settings.notificationStyle === "compact"
+  pillWidth: compact ? 400 : 440
+  pillHeight: compact ? host.pillHeight : 84
+  function escaped(text) {
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  }
   // The island's own banners act on a click (see Island.qml's showBanner);
   // any other notification opens its app.
   function clicked(mouse) {
@@ -34,12 +39,12 @@ IslandPill {
     opacity: reveal.leadingIn
     PillPart { target: appTile; progress: reveal.leadingIn }
     anchors.left: parent.left
-    anchors.leftMargin: 15
+    anchors.leftMargin: pill.compact ? 7 : 15
     anchors.verticalCenter: parent.verticalCenter
     // Grows with the pill so it never pokes past the rounded ends.
     width: height
-    height: Math.max(0, Math.min(54, shape.height - 30))
-    radius: height * 0.28
+    height: pill.compact ? Math.max(0, Math.min(32, shape.height - 12)) : Math.max(0, Math.min(54, shape.height - 30))
+    radius: pill.compact ? height / 2 : height * 0.28
     color: "transparent"
     Rectangle {
       anchors.fill: parent
@@ -76,7 +81,7 @@ IslandPill {
     anchors.left: appTile.right
     anchors.leftMargin: 12
     anchors.right: parent.right
-    anchors.rightMargin: 30
+    anchors.rightMargin: pill.compact ? 18 : 30
     anchors.verticalCenter: parent.verticalCenter
     spacing: 2
     Item {
@@ -87,15 +92,19 @@ IslandPill {
         anchors.left: parent.left
         anchors.right: age.left
         anchors.rightMargin: 8
-        text: host.notifications.title(pill.row)
-        textFormat: Text.PlainText
+        // Compact puts the body on the title's line, dimmer.
+        text: pill.compact
+          ? "<b>" + pill.escaped(host.notifications.title(pill.row)) + "</b>&nbsp;&nbsp;<font color=\"#b8ffffff\">"
+            + pill.escaped(pill.row.body || pill.row.app || "") + "</font>"
+          : host.notifications.title(pill.row)
+        textFormat: pill.compact ? Text.StyledText : Text.PlainText
         elide: Text.ElideRight
         // iOS's type: a semibold title and a regular body of nearly the same
         // size, in SF's stand-in (Adwaita Sans).
         color: "#ffffff"
         font.family: host.theme.textFontFamily
-        font.pixelSize: host.theme.px(15)
-        font.weight: Font.DemiBold
+        font.pixelSize: host.theme.px(pill.compact ? 13 : 15)
+        font.weight: pill.compact ? Font.Normal : Font.DemiBold
         font.letterSpacing: -0.2
       }
       Text {
@@ -113,7 +122,7 @@ IslandPill {
     Text {
       width: parent.width
       text: String(pill.row.body || pill.row.app || "")
-      visible: text !== ""
+      visible: text !== "" && !pill.compact
       textFormat: Text.PlainText
       elide: Text.ElideRight
       color: Qt.rgba(1, 1, 1, 0.72)

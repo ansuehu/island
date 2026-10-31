@@ -15,6 +15,17 @@ ColumnLayout {
     title: "Banners"
     SettingsRow {
       view: page.view
+      label: "Banner Style"
+      detail: "A one-line banner as tall as the pill, or the full card"
+      SettingsSegmented {
+        view: page.view
+        options: [{ label: "Compact", value: "compact" }, { label: "Expanded", value: "expanded" }]
+        value: page.view.settings.notificationStyle
+        onPicked: function(v) { page.view.settings.notificationStyle = v }
+      }
+    }
+    SettingsRow {
+      view: page.view
       label: "Banner Duration"
       detail: "How long a notification stays on the pill"
       last: true

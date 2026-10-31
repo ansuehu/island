@@ -47,6 +47,7 @@ Item {
       property bool volumeHud: true
       property bool brightnessHud: true
       property int bannerSeconds: 5
+      property string notificationStyle: "expanded"
       property bool notch: false
       property bool reserveTop: false
       // What a click on the resting island does, per button (see Island.qml).
