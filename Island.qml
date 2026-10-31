@@ -860,10 +860,18 @@ Item {
             id: islandTap
             anchors.fill: parent
             enabled: root.view === "rest" || root.view === "feedback"
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             onPressed: squishHold.restart()
+            // Each button does what Settings → General picks for it.
             onClicked: function(mouse) {
+              var action = mouse.button === Qt.RightButton ? root.settings.rightClick : root.settings.leftClick
+              if (action === "none") return
               feedbackTimer.stop()
-              if (island.activePill) island.activePill.clicked(mouse)
+              if (action !== "activity" && root.surfaceOpenFor(action)) {
+                if (action === "menu") root.menuRoute = "root"
+                root.view = action
+              }
+              else if (island.activePill) island.activePill.clicked(mouse)
               else if (root.view === "rest" && root.setup.needsSetup) root.setup.pillClicked()
               else root.view = "controls"
             }
