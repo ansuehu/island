@@ -19,13 +19,7 @@ Rectangle {
   readonly property string artist: nowPlaying && nowPlaying.artist ? nowPlaying.artist : (player && player.trackArtist ? String(player.trackArtist) : "")
   readonly property string artUrl: nowPlaying && nowPlaying.art ? nowPlaying.art : ""
 
-  // Stacked under another live activity (a recording, an addon's like Claude
-  // working, a download), which has pushed the media pill out of the island.
-  readonly property bool stacked: host.view === "rest" && isPlaying && host.settings.mediaPill
-    && host.settings.glanceMediaSatellite !== false
-    && (host.recordingPill || host.addons.ongoing || host.downloadPill)
-  readonly property bool shown: !!shape && isPlaying && host.view === "rest" && (host.settings.glanceMediaSatellite !== false)
-    && ((shape.isGlanceExpanded && !hasMediaInGlance) || stacked)
+  readonly property bool shown: shape && shape.isGlanceExpanded && !hasMediaInGlance && isPlaying && host.view === "rest" && (host.settings.glanceMediaSatellite !== false)
   readonly property bool isHovered: mouseArea.containsMouse
 
   x: shape ? shape.x + (shape.width - width) / 2 : 0

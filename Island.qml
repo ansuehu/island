@@ -8,6 +8,7 @@ import Quickshell.Io
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
 import Quickshell.Wayland
+import Quickshell.Widgets
 import "addons"
 import "components"
 import "services"
@@ -36,6 +37,11 @@ Item {
   readonly property bool downloadActive: restingFree && (downloads.active || packages.active) && !downloadDone
   readonly property bool downloadPill: downloadDone || downloadActive
   readonly property bool mediaPill: restingFree && !downloadPill && nowPlaying.playing && settings.mediaPill
+  // Another live activity has the island, and music is playing: the island
+  // widens by stackWidth and the cover and wave sit at its right end.
+  readonly property bool mediaStacked: resting && nowPlaying.playing && settings.mediaPill
+    && (recordingPill || addons.ongoing || downloadPill)
+  readonly property real stackWidth: 92
   // The live-activity pills' height, and the resting clock's.
   readonly property real pillHeight: settings.notch ? 40 : 44
   // Room the top bar mode keeps clear: the pill, and its gap from the edge.
@@ -680,6 +686,9 @@ Item {
           y: ySpring.value
           readonly property Item activeSurface: views.surfaceFor(root.view)
           readonly property Item activePill: pills.active
+          // How much of the island's right end the stacked media takes.
+          property real stackShift: root.mediaStacked ? root.stackWidth : 0
+          Behavior on stackShift { MotionAnimation { theme: root.theme; pace: "standard" } }
           readonly property bool glanceHovered: clockHover.hovered || islandPointerHover.hovered || (satellitePill && satellitePill.isHovered)
           property bool glanceActive: false
           readonly property bool hasGlanceItems: glanceBar ? glanceBar.hasItems : false
@@ -745,7 +754,7 @@ Item {
             : baseGlanceWidth + clockExtra
           readonly property real targetWidth: activeSurface ? activeSurface.islandWidth
             : island.isGlanceExpanded ? island.glanceWidth
-            : activePill ? activePill.pillWidth + (activePill.keepsClock ? clockExtra : 0)
+            : activePill ? activePill.pillWidth + (activePill.keepsClock ? clockExtra : 0) + (root.mediaStacked ? root.stackWidth : 0)
             : root.view === "feedback" ? 280
             : root.setup.needsSetup ? (root.setup.warning.length > 24 ? 320 : 250)
             : 100 + clockExtra
@@ -864,6 +873,7 @@ Item {
           Item {
             id: pills
             anchors.fill: parent
+            anchors.rightMargin: island.stackShift
             readonly property Item active: {
               for (var i = 0; i < children.length; i++) if (children[i].shown) return children[i]
               return null
@@ -888,7 +898,58 @@ Item {
             anchors.fill: parent
           }
 
-          IslandLabel { id: clockLabel; host: root; pill: island.activePill; anchors.centerIn: parent }
+          IslandLabel {
+            id: clockLabel
+            host: root
+            pill: island.activePill
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.horizontalCenterOffset: -island.stackShift / 2
+            anchors.verticalCenter: parent.verticalCenter
+          }
+          // The music, stacked into the same island beside the other activity.
+          Item {
+            id: stackedMedia
+            opacity: root.mediaStacked ? 1 : 0
+            visible: opacity > 0.01
+            Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
+            anchors.right: parent.right
+            anchors.rightMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.stackWidth - 24
+            height: 26
+            Row {
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: 8
+              ClippingRectangle {
+                width: 24
+                height: 24
+                radius: 7
+                color: root.theme.fill("raised")
+                anchors.verticalCenter: parent.verticalCenter
+                Image {
+                  anchors.fill: parent
+                  source: root.nowPlaying.art
+                  sourceSize.width: 48
+                  sourceSize.height: 48
+                  fillMode: Image.PreserveAspectCrop
+                  asynchronous: true
+                }
+              }
+              SoundWave {
+                bars: 3
+                maxHeight: 14
+                playing: root.nowPlaying.playing
+                color: root.nowPlaying.tint
+                anchors.verticalCenter: parent.verticalCenter
+              }
+            }
+            MouseArea {
+              anchors.fill: parent
+              anchors.margins: -4
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.view = "player"
+            }
+          }
           TextMetrics { id: clockMetrics; font: clockLabel.font; text: root.clockStacked ? root.clockWidestText : root.clockText }
 
           Views { id: views; host: root; anchors.fill: parent }
