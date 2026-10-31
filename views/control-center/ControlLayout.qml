@@ -342,8 +342,9 @@ ColumnLayout {
               && !layout.controls.controlWide(controlCard.modelData) ? (resizeMouse.pressed ? 0.85 : 1) : 0
             Behavior on scale { MotionAnimation { theme: layout.center.host.theme; pace: "standard" } }
             z: 2
-            x: parent.width - width / 2 - controlCard.cornerRadius * (1 - Math.SQRT1_2)
-            y: controlCard.cornerRadius * (1 - Math.SQRT1_2) - height / 2
+            // Inside the card's bottom-right corner, clear of the neighbours' − badges.
+            x: parent.width - width - 5
+            y: parent.height - height - 5
             width: 20
             height: 20
             radius: 10
