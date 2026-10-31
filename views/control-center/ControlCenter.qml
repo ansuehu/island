@@ -239,9 +239,11 @@ ColumnLayout {
     id: controlLayout
     Layout.fillWidth: true
     center: cc
+    // Show More gives the whole view to the notifications.
+    visible: !notificationHistory.showAll
   }
 
-  NotificationHistory { center: cc }
+  NotificationHistory { id: notificationHistory; center: cc }
 
   // ---------- Cards, loaded by the grid and the gallery ----------
 
