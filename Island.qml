@@ -832,7 +832,7 @@ Item {
             bounce: island.squished ? 0 : 0.35
             target: island.squished ? 100 : 0
           }
-          scale: (root.surfaceOpen ? 1 - (1 - root.settings.pillScale) * 0.4 : root.settings.pillScale) * (root.settings.notch ? 1.0 : (1 + liftSpring.value * 0.00018 - pressSpring.value * 0.0003))
+          scale: (root.surfaceOpen || root.notificationPill ? 1 - (1 - root.settings.pillScale) * 0.4 : root.settings.pillScale) * (root.settings.notch ? 1.0 : (1 + liftSpring.value * 0.00018 - pressSpring.value * 0.0003))
           // With the notch the island hangs from the top edge, so it scales from there.
           transformOrigin: root.settings.notch || root.settings.pillScale < 1 ? Item.Top : Item.Center
           HoverHandler { id: clockHover; enabled: root.view === "rest" }
