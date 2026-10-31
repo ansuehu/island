@@ -336,6 +336,87 @@ ColumnLayout {
     view: page.view
     title: "Capsules on hover"
     visible: (page.view.settings.hoverStyle || (page.view.settings.hoverCapsules ? "capsules" : page.view.settings.hoverExpand ? "expand" : "none")).indexOf("capsules") === 0 || (page.view.settings.hoverStyle === "always")
+    // Where each capsule sits around the island: a line read left to right,
+    // the island in the middle; the arrows move one a place over (across the
+    // island too). Saved as "left nearest-first|right nearest-first".
+    SettingsRow {
+      id: arrangeRow
+      view: page.view
+      icon: "󰕰"
+      iconTint: page.system.indigo
+      label: "Arrangement"
+      detail: "Move capsules around the island"
+      readonly property var names: ({ event: "Event", tray: "Tray", workspaces: "Workspaces", media: "Media", weather: "Weather", notifications: "Notifications", system: "System" })
+      readonly property string defaultOrder: "event,tray,workspaces,media|weather,notifications,system"
+      readonly property var line: {
+        var sides = String(page.view.settings.capsuleOrder || defaultOrder).split("|")
+        var left = (sides[0] || "").split(",").filter(function(k) { return k in names })
+        var right = (sides[1] || "").split(",").filter(function(k) { return k in names && left.indexOf(k) < 0 })
+        var fb = defaultOrder.split("|")
+        fb[0].split(",").forEach(function(k) { if (left.indexOf(k) < 0 && right.indexOf(k) < 0) left.push(k) })
+        fb[1].split(",").forEach(function(k) { if (left.indexOf(k) < 0 && right.indexOf(k) < 0) right.push(k) })
+        return left.slice().reverse().concat(["island"], right)
+      }
+      function move(index, by) {
+        var line = arrangeRow.line.slice(), to = index + by
+        if (to < 0 || to >= line.length) return
+        var item = line[index]
+        line[index] = line[to]
+        line[to] = item
+        var at = line.indexOf("island")
+        page.view.settings.capsuleOrder = line.slice(0, at).reverse().join(",") + "|" + line.slice(at + 1).join(",")
+      }
+    }
+    Flow {
+      Layout.fillWidth: true
+      Layout.leftMargin: 14
+      Layout.rightMargin: 14
+      Layout.bottomMargin: 10
+      spacing: 6
+      Repeater {
+        model: arrangeRow.line
+        delegate: Rectangle {
+          required property string modelData
+          required property int index
+          readonly property bool island: modelData === "island"
+          height: 28
+          width: pillRow.implicitWidth + 12
+          radius: 14
+          color: island ? page.view.accent : page.view.host.theme.fill("raised")
+          Row {
+            id: pillRow
+            anchors.centerIn: parent
+            spacing: 4
+            Text {
+              visible: !parent.parent.island
+              text: "‹"
+              color: leftArrow.containsMouse ? "#ffffff" : page.view.textMuted
+              font.pixelSize: page.view.host.theme.px(15)
+              anchors.verticalCenter: parent.verticalCenter
+              MouseArea { id: leftArrow; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: arrangeRow.move(parent.parent.parent.index, -1) }
+            }
+            Text {
+              text: parent.parent.island ? "Island" : arrangeRow.names[parent.parent.modelData]
+              color: parent.parent.island ? page.view.host.theme.accentText : "#ffffff"
+              font.family: page.view.host.theme.textFontFamily
+              font.pixelSize: page.view.host.theme.px(12)
+              font.weight: Font.Medium
+              anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+              visible: !parent.parent.island
+              text: "›"
+              color: rightArrow.containsMouse ? "#ffffff" : page.view.textMuted
+              font.pixelSize: page.view.host.theme.px(15)
+              anchors.verticalCenter: parent.verticalCenter
+              MouseArea { id: rightArrow; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: arrangeRow.move(parent.parent.parent.index, 1) }
+            }
+          }
+        }
+      }
+    }
     SettingsRow {
       view: page.view
       icon: "󰀻"

@@ -166,6 +166,8 @@ Item {
     }
 
     visible: present
+    // Out from the island past the ones before it: leftwards on the left.
+    x: side < 0 ? (parent ? parent.width : 0) - lead - width : lead
     width: row.implicitWidth + padding * 2
     height: capsules.capsuleHeight
     radius: height / 2
@@ -228,10 +230,12 @@ Item {
 
   // ---------- Left: next event, tray apps and updates, workspaces, now playing ----------
 
-  Row {
+  // Each row lays its capsules out itself (see Capsule's x), nearest the
+  // island first, so the order can change without reordering children.
+  Item {
     id: leftRow
-    layoutDirection: Qt.RightToLeft
-    spacing: capsules.gap
+    width: capsules.rowWidth(leftRow)
+    height: capsules.capsuleHeight
     x: capsules.island.x + capsules.island.width * (1 - capsules.ps) / 2 - capsules.gap * capsules.ps - width
     y: capsules.capsuleY
     scale: capsules.ps
@@ -416,9 +420,10 @@ Item {
 
   // ---------- Right: weather, notifications, connections and power ----------
 
-  Row {
+  Item {
     id: rightRow
-    spacing: capsules.gap
+    width: capsules.rowWidth(rightRow)
+    height: capsules.capsuleHeight
     x: capsules.island.x + capsules.island.width * (1 + capsules.ps) / 2 + capsules.gap * capsules.ps
     y: capsules.capsuleY
     scale: capsules.ps
@@ -454,6 +459,7 @@ Item {
     }
 
     Capsule {
+      id: systemCapsule
       present: capsules.showSystem
       side: 1
       before: [weatherCapsule, notificationCapsule]
@@ -496,5 +502,50 @@ Item {
         TapHandler { onTapped: capsules.host.view = "controls" }
       }
     }
+  }
+
+  // ---------- Order ----------
+
+  // Which side each capsule sits on and in what order, nearest the island
+  // first (Settings → General → Capsules): "left,…|right,…". Capsules missing
+  // from a saved order keep their default place.
+  readonly property string defaultOrder: "event,tray,workspaces,media|weather,notifications,system"
+  readonly property var capsuleByKey: ({
+    event: eventCapsule, tray: trayCapsule, workspaces: workspaceCapsule, media: mediaCapsule,
+    weather: weatherCapsule, notifications: notificationCapsule, system: systemCapsule
+  })
+  function orderSides(text) {
+    var sides = String(text || defaultOrder).split("|")
+    var left = (sides[0] || "").split(",").filter(function(k) { return k in capsuleByKey })
+    var right = (sides[1] || "").split(",").filter(function(k) { return k in capsuleByKey && left.indexOf(k) < 0 })
+    var fallback = defaultOrder.split("|")
+    fallback[0].split(",").forEach(function(k) { if (left.indexOf(k) < 0 && right.indexOf(k) < 0) left.push(k) })
+    fallback[1].split(",").forEach(function(k) { if (left.indexOf(k) < 0 && right.indexOf(k) < 0) right.push(k) })
+    return [left, right]
+  }
+  function rowWidth(row) {
+    var total = 0, kids = row.children
+    for (var i = 0; i < kids.length; i++)
+      if (kids[i].present && kids[i].visible) total += kids[i].width + (total > 0 ? capsules.gap : 0)
+    return total
+  }
+  function arrange() {
+    var sides = orderSides(settings.capsuleOrder)
+    var rows = [leftRow, rightRow]
+    for (var r = 0; r < 2; r++) {
+      var placed = []
+      sides[r].forEach(function(key) {
+        var capsule = capsuleByKey[key]
+        capsule.side = r === 0 ? -1 : 1
+        capsule.before = placed.slice()
+        if (capsule.parent !== rows[r]) capsule.parent = rows[r]
+        placed.push(capsule)
+      })
+    }
+  }
+  Component.onCompleted: arrange()
+  Connections {
+    target: capsules.settings
+    function onCapsuleOrderChanged() { capsules.arrange() }
   }
 }
