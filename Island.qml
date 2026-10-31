@@ -144,6 +144,30 @@ Item {
   // options out) the next time it's shown; both are cleared once taken.
   property string settingsPage: ""
   property string settingsAddon: ""
+  // Settings stepping aside to show the resting pill: its capsules for a
+  // moment after they're rearranged, or a test banner until it's gone; then
+  // Settings comes back on the same page.
+  property bool capsulePeek: false
+  property string returnToSettings: ""
+  function peekCapsules() {
+    returnToSettings = settingsPage || "General"
+    capsulePeek = true
+    view = "rest"
+    peekTimer.restart()
+  }
+  Timer {
+    id: peekTimer
+    interval: 2500
+    onTriggered: {
+      root.capsulePeek = false
+      root.backToSettings()
+    }
+  }
+  function backToSettings() {
+    var page = returnToSettings
+    returnToSettings = ""
+    if (page !== "" && view === "rest") openSettings(page)
+  }
   function openSettings(page, addonId) {
     settingsPage = page || ""
     settingsAddon = addonId || ""
@@ -398,6 +422,7 @@ Item {
     onTriggered: {
       if (root.view === "feedback") root.view = "rest"
       root.feedbackKind = ""
+      if (!root.capsulePeek) root.backToSettings()
     }
   }
 
@@ -737,7 +762,7 @@ Item {
           id: hoverCapsules
           host: root
           island: island
-          shown: root.capsuleMode && island.capsulesShown && !window.islandHidden
+          shown: island.capsulesShown && !window.islandHidden
           anchors.fill: parent
           // Under the island, so the capsules can start tucked beneath it.
           z: -1
@@ -813,7 +838,7 @@ Item {
           }
           readonly property bool hasNonMediaActivePill: pills.active !== null && pills.active !== mediaPillItem
           readonly property bool isGlanceExpanded: island.glanceActive && (root.hoverMode === "expand") && island.hasGlanceItems && root.restingFree && !root.downloadPill && !island.hasNonMediaActivePill
-          readonly property bool capsulesShown: (island.capsulesActive || root.hoverMode === "always") && root.capsuleMode && (root.resting || root.volumePill)
+          readonly property bool capsulesShown: (root.capsulePeek || ((island.capsulesActive || root.hoverMode === "always") && root.capsuleMode)) && (root.resting || root.volumePill)
           // How much wider than a bare time the chosen clock format is; the
           // resting pill and the pills that keep the clock in the middle grow by it.
           readonly property real clockExtra: Math.max(0, Math.ceil(clockLabel.advanceWidth || clockMetrics.advanceWidth) + 56 - 100)

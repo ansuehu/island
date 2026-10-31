@@ -22,6 +22,8 @@ ColumnLayout {
         view: page.view
         label: "Send Test Notification"
         onClicked: {
+          // Back to this page once the banner's gone.
+          page.view.host.returnToSettings = "Notifications"
           page.view.host.view = "rest"
           // A moment for Settings to close, or the banner has nowhere to show.
           Quickshell.execDetached(["sh", "-c", "sleep 0.4; notify-send -a Island -A 'ok=Looks good' 'Test notification' 'This is how a banner looks with your settings. Hover it, or try its buttons.'"])

@@ -365,6 +365,8 @@ ColumnLayout {
         line[to] = item
         var at = line.indexOf("island")
         page.view.settings.capsuleOrder = line.slice(0, at).reverse().join(",") + "|" + line.slice(at + 1).join(",")
+        // Show it on the island, then come back here.
+        page.view.host.peekCapsules()
       }
     }
     Flow {
