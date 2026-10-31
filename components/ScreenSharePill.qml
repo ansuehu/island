@@ -9,7 +9,7 @@ IslandPill {
   shown: host.sharePill
   pillWidth: 240
   keepsClock: true
-  function clicked(mouse) { host.view = "controls" }
+  function clicked(mouse) { host.view = "share" }
 
   PillReveal { id: reveal; theme: pill.host.theme; shown: pill.shown }
 
