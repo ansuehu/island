@@ -1,6 +1,7 @@
 import QtQuick
 import QtMultimedia
 import Quickshell.Widgets
+import "../../components"
 
 // The camera mirror: the default webcam, live and flipped like a mirror,
 // in a 16:9 frame. The camera is only on while `active` (the view is
