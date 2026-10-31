@@ -35,7 +35,26 @@ Item {
   // A recording shrinks to a dot and its time beside another activity (an
   // addon's, or the music playing) instead of taking the island from it.
   readonly property bool recordingStacked: recordingPill && (addons.ongoing || (nowPlaying.playing && settings.mediaPill))
-  readonly property bool restingFree: resting && (!recordingPill || recordingStacked) && !addons.ongoing
+  // Screen sharing (a portal screencast, as Hyprland reports it): its own
+  // live activity, under an addon's (Claude working) and a recording.
+  property bool screenSharing: false
+  property string shareKind: "screen"
+  property real shareStartedAt: 0
+  readonly property bool sharePill: resting && screenSharing && settings.screenShareActivity !== false
+    && !(recordingPill && !recordingStacked) && !addons.ongoing
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (String(event && event.name) !== "screencast") return
+      // "1,0": started, sharing a monitor; "1,1" a window; "0,…" stopped.
+      var parts = String(event.data || "").split(",")
+      var on = parts[0] === "1"
+      if (on && !root.screenSharing) root.shareStartedAt = Date.now()
+      root.screenSharing = on
+      root.shareKind = parts[1] === "1" ? "window" : "screen"
+    }
+  }
+  readonly property bool restingFree: resting && (!recordingPill || recordingStacked) && !addons.ongoing && !sharePill
   readonly property bool downloadDone: restingFree
     && (downloads.finishedName !== "" || packages.finishedTitle !== "")
   readonly property bool downloadActive: restingFree && (downloads.active || packages.active) && !downloadDone
@@ -44,8 +63,10 @@ Item {
   // Another live activity has the island, and music is playing: the island
   // widens by stackWidth and the cover and wave sit at its right end.
   readonly property bool mediaStacked: resting && nowPlaying.playing && settings.mediaPill
-    && (addons.ongoing || downloadPill)
-  readonly property real stackWidth: (mediaStacked ? 92 : 0) + (recordingStacked ? 74 : 0)
+    && (addons.ongoing || downloadPill || sharePill)
+  // Sharing beside another activity shrinks to its glyph, as the others do.
+  readonly property bool shareStacked: resting && screenSharing && settings.screenShareActivity !== false && !sharePill
+  readonly property real stackWidth: (mediaStacked ? 92 : 0) + (recordingStacked ? 74 : 0) + (shareStacked ? 34 : 0)
   // The live-activity pills' height, and the resting clock's.
   readonly property real pillHeight: settings.notch ? 40 : 44
   // Room the top bar mode keeps clear: the pill, and its gap from the edge.
@@ -1040,6 +1061,7 @@ Item {
             WorkspacePill { host: root; anchors.fill: parent }
             AddonPills { host: root; anchors.fill: parent }
             RecordingPill { host: root; anchors.fill: parent }
+            ScreenSharePill { host: root; anchors.fill: parent }
             MediaPill { id: mediaPillItem; host: root; shape: island; anchors.fill: parent }
             DownloadPill { host: root; anchors.fill: parent }
           }
@@ -1115,6 +1137,20 @@ Item {
               cursorShape: Qt.PointingHandCursor
               onClicked: root.view = "player"
             }
+          }
+          // Screen sharing, stacked: its glyph.
+          Text {
+            id: stackedShare
+            opacity: root.shareStacked ? 1 : 0
+            visible: opacity > 0.01
+            Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
+            anchors.right: root.recordingStacked ? stackedRecording.left : root.mediaStacked ? stackedMedia.left : parent.right
+            anchors.rightMargin: root.recordingStacked || root.mediaStacked ? 12 : 14
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.shareKind === "window" ? "󰖯" : "󰍹"
+            color: root.settings.colorfulLiveActivities ? root.theme.system.green : root.theme.accent
+            font.family: root.theme.fontFamily
+            font.pixelSize: root.theme.px(16)
           }
           // The recording, stacked the same way: its dot and time; a click stops it.
           Item {
