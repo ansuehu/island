@@ -579,7 +579,7 @@ Item {
               if (link === "") return
               // TickTick's own app when it's installed (its window if open,
               // else launched); the web app otherwise.
-              if (link.indexOf("ticktick.com") >= 0) {
+              if (link.indexOf("ticktick.com") >= 0 && view.calendar.addon.option("tickTickOpens") !== "web") {
                 Quickshell.execDetached(["sh", "-c",
                   'omarchy-hyprland-focus-app ticktick || { command -v ticktick >/dev/null && exec setsid ticktick; } || exec xdg-open "$1"',
                   "open", link])
