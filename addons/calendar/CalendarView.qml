@@ -50,6 +50,9 @@ Item {
   property bool confirmDelete: false
   property string flash: ""
   property string composeError: ""
+  readonly property bool syncTrouble: view.calendar.failedFeeds.length > 0 || view.calendar.taskError !== ""
+  property bool justSynced: false
+  Timer { id: justSyncedTimer; interval: 2500; onTriggered: view.justSynced = false }
   // Set when a drag ends, so the release that follows doesn't pick a day.
   property real lastDrag: 0
 
@@ -109,6 +112,7 @@ Item {
   Connections {
     target: view.calendar
     // A background TickTick write that failed says so where you are.
+    function onSyncedClean() { view.justSynced = true; justSyncedTimer.restart() }
     function onTaskErrorChanged() {
       if (view.calendar.taskError === "") return
       view.flash = view.calendar.taskError
@@ -856,12 +860,16 @@ Item {
         Tooltip {
           theme: view.theme
           text: view.calendar.unsynced > 0 ? "Waiting for TickTick to publish " + view.calendar.unsynced + (view.calendar.unsynced === 1 ? " change" : " changes")
-            : view.calendar.syncing ? "Syncing…" : "Sync now"
+            : view.calendar.syncing ? "Syncing…"
+            : view.syncTrouble ? (view.calendar.taskError || "Couldn't read " + view.calendar.failedFeeds.join(", ")) + " · click to retry"
+            : view.justSynced ? "Synced" : "Sync now"
         }
         width: 26
         horizontalAlignment: Text.AlignHCenter
-        text: "󰑐"
-        color: syncMouse.containsMouse || view.calendar.syncing ? view.ink : view.inkMuted
+        // A tick for a moment after a clean sync, the arrows otherwise.
+        text: view.justSynced && !view.calendar.syncing ? "󰄬" : "󰑐"
+        color: view.justSynced && !view.calendar.syncing ? view.theme.system.green
+          : syncMouse.containsMouse || view.calendar.syncing ? view.ink : view.inkMuted
         font.family: view.theme.fontFamily
         font.pixelSize: view.theme.px(14)
         RotationAnimator on rotation {
@@ -876,7 +884,23 @@ Item {
           anchors.margins: -3
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
-          onClicked: view.calendar.retry()
+          onClicked: { view.calendar.taskError = ""; view.calendar.retry() }
+        }
+        // Something went wrong: a feed unread or a write refused.
+        Rectangle {
+          visible: view.syncTrouble && !view.calendar.syncing
+          x: parent.width - width - 1
+          y: -3
+          width: 11; height: 11; radius: 5.5
+          color: view.theme.system.red
+          Text {
+            anchors.centerIn: parent
+            text: "!"
+            color: "#ffffff"
+            font.family: view.theme.textFontFamily
+            font.pixelSize: 9
+            font.weight: Font.Black
+          }
         }
       }
       // A task or event for the selected day.
