@@ -86,6 +86,18 @@ ColumnLayout {
     }
     SettingsRow {
       view: page.view
+      icon: "󰘔"
+      iconTint: page.system.green
+      label: "Top bar"
+      detail: "Always show the island and keep windows from sliding under it"
+      SettingsSwitch {
+        view: page.view
+        checked: page.view.settings.reserveTop
+        onToggled: function(on) { page.view.settings.reserveTop = on }
+      }
+    }
+    SettingsRow {
+      view: page.view
       icon: "󰁌"
       iconTint: page.system.blue
       label: "Hover style"

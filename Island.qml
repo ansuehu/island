@@ -38,6 +38,8 @@ Item {
   readonly property bool mediaPill: restingFree && !downloadPill && nowPlaying.playing && settings.mediaPill
   // The live-activity pills' height, and the resting clock's.
   readonly property real pillHeight: settings.notch ? 40 : 44
+  // Room the top bar mode keeps clear: the pill, and its gap from the edge.
+  readonly property real reservedTop: pillHeight + (settings.notch ? 0 : 8) + 4
   readonly property real clockHeight: clockStacked ? (settings.notch ? 40 : 42) : (settings.notch ? 36 : 40)
 
   readonly property var nowPlaying: nowPlayingData
@@ -494,6 +496,25 @@ Item {
     onTriggered: root.outsideClickArmed = true
   }
   onSurfaceOpenChanged: if (!surfaceOpen) outsideClickArmed = false
+  // Top bar mode: an empty strip along the island's screen that tiled
+  // windows stop below.
+  Variants {
+    model: root.settings.reserveTop ? Quickshell.screens : []
+    delegate: Component {
+      PanelWindow {
+        required property var modelData
+        screen: modelData
+        visible: modelData.name === root.outputName
+        color: "transparent"
+        exclusiveZone: root.reservedTop
+        implicitHeight: 1
+        anchors { top: true; left: true; right: true }
+        mask: Region {}
+        WlrLayershell.namespace: "omarchy-island-reserve"
+        WlrLayershell.layer: WlrLayer.Background
+      }
+    }
+  }
   Variants {
     model: Quickshell.screens
     delegate: Component {
@@ -548,7 +569,7 @@ Item {
           onTriggered: window.edgeRevealed = false
         }
 
-        readonly property bool isEffectivelyHidden: (root.barHidden || autoHideCondition)
+        readonly property bool isEffectivelyHidden: !root.settings.reserveTop && (root.barHidden || autoHideCondition)
           && (root.view === "rest" || hasScreensaver)
 
         // Hover at the top edge can bring a hidden island back.

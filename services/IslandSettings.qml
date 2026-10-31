@@ -47,6 +47,7 @@ Item {
       property bool brightnessHud: true
       property int bannerSeconds: 5
       property bool notch: false
+      property bool reserveTop: false
       property bool downloads: true
       property bool clipboard: true
       property bool screenRecordingActivity: true
