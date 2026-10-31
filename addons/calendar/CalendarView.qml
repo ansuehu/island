@@ -44,6 +44,10 @@ Item {
   property var detail: null
   property bool composing: false
   property bool expanded: false
+  // The next seven days as one list (tasks and events), instead of the month.
+  property bool agendaMode: false
+  // A task's Delete asks once more before it goes.
+  property bool confirmDelete: false
   property string flash: ""
   property string composeError: ""
   // Set when a drag ends, so the release that follows doesn't pick a day.
@@ -79,10 +83,15 @@ Item {
     view.detail = null
     view.composing = false
     view.expanded = false
+    view.agendaMode = false
+    view.confirmDelete = false
     Qt.callLater(function() { view.forceActiveFocus() })
   }
   onPreviewChanged: view.expanded = false
-  onDetailChanged: if (view.detail) view.expanded = false
+  onDetailChanged: {
+    view.confirmDelete = false
+    if (view.detail) view.expanded = false
+  }
   onComposingChanged: if (view.composing) {
     view.composeError = ""
     Qt.callLater(function() { titleField.focusInput() })
@@ -112,7 +121,8 @@ Item {
     view.calendar.shiftDay(by)
   }
   function stepBack() {
-    if (view.composing) view.stopCompose()
+    if (view.agendaMode && !view.detail && !view.composing) view.agendaMode = false
+    else if (view.composing) view.stopCompose()
     else if (view.detail) view.closeDetail()
     else view.host.view = "rest"
   }
@@ -179,6 +189,7 @@ Item {
 
   Item {
     id: left
+    visible: !view.agendaMode
     anchors.left: parent.left
     anchors.right: month.left
     anchors.rightMargin: 24
@@ -192,13 +203,37 @@ Item {
       visible: !view.detail && !view.composing
       spacing: 0
 
-      Text {
-        text: view.weekdays[view.shownDate.getDay()].toUpperCase()
-        color: view.accent
-        font.family: view.theme.textFontFamily
-        font.pixelSize: view.theme.px(13)
-        font.weight: Font.Bold
-        font.letterSpacing: 0.4
+      Item {
+        width: parent.width
+        height: weekdayText.height
+        Text {
+          id: weekdayText
+          text: view.weekdays[view.shownDate.getDay()].toUpperCase()
+          color: view.accent
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(13)
+          font.weight: Font.Bold
+          font.letterSpacing: 0.4
+        }
+        // To the next seven days as one list.
+        Text {
+          anchors.right: parent.right
+          anchors.baseline: weekdayText.baseline
+          text: "7 DAYS"
+          color: weekMouse.containsMouse ? view.ink : view.inkMuted
+          font.family: view.theme.textFontFamily
+          font.pixelSize: view.theme.px(10)
+          font.weight: Font.Bold
+          font.letterSpacing: 0.4
+          MouseArea {
+            id: weekMouse
+            anchors.fill: parent
+            anchors.margins: -5
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: view.agendaMode = true
+          }
+        }
       }
       Text {
         text: view.shownDate.getDate()
@@ -527,6 +562,26 @@ Item {
             }
           }
         }
+        // A TickTick task: done, or gone (asked twice).
+        Item { width: 1; height: 8; visible: taskButtons.visible }
+        Row {
+          id: taskButtons
+          visible: !!(view.detail && view.detail.taskId) && view.tickTick
+          spacing: 6
+          DetailButton {
+            label: "󰄬  Complete"
+            onActivated: { view.calendar.taskAction(view.detail, "complete"); view.closeDetail() }
+          }
+          DetailButton {
+            label: view.confirmDelete ? "Really delete?" : "󰆴  Delete"
+            danger: view.confirmDelete
+            onActivated: {
+              if (!view.confirmDelete) { view.confirmDelete = true; return }
+              view.calendar.taskAction(view.detail, "delete")
+              view.closeDetail()
+            }
+          }
+        }
       }
     }
 
@@ -750,6 +805,7 @@ Item {
 
   Item {
     id: month
+    visible: !view.agendaMode
     anchors.right: parent.right
     width: view.gridWidth
     height: grid.y + view.gridHeight
@@ -1026,6 +1082,236 @@ Item {
         view.calendar.shiftMonth(held > 0 ? -1 : 1)
         held = 0
       }
+    }
+  }
+
+  // ---------- The next seven days ----------
+
+  readonly property var weekDays: {
+    var t = view.calendar.today, days = []
+    for (var i = 0; i < 7; i++) {
+      var day = new Date(t.getFullYear(), t.getMonth(), t.getDate() + i)
+      days.push({ date: day, events: view.calendar.eventsOn(day) })
+    }
+    return days
+  }
+  function dayLabel(day, index) {
+    if (index === 0) return "TODAY"
+    if (index === 1) return "TOMORROW"
+    return view.weekdays[day.getDay()].toUpperCase() + " " + day.getDate()
+  }
+  // A row clicked: back to the month on its day, with its details open.
+  function showFromAgenda(day, event) {
+    view.agendaMode = false
+    view.calendar.select(day)
+    Qt.callLater(function() { view.openDetail(event) })
+  }
+
+  Item {
+    id: agenda
+    anchors.fill: parent
+    visible: view.agendaMode
+    Text {
+      id: agendaTitle
+      text: "NEXT 7 DAYS"
+      color: view.accent
+      font.family: view.theme.textFontFamily
+      font.pixelSize: view.theme.px(13)
+      font.weight: Font.Bold
+      font.letterSpacing: 0.4
+    }
+    Text {
+      anchors.right: parent.right
+      anchors.baseline: agendaTitle.baseline
+      text: "MONTH"
+      color: monthLinkMouse.containsMouse ? view.ink : view.inkMuted
+      font.family: view.theme.textFontFamily
+      font.pixelSize: view.theme.px(10)
+      font.weight: Font.Bold
+      font.letterSpacing: 0.4
+      MouseArea {
+        id: monthLinkMouse
+        anchors.fill: parent
+        anchors.margins: -5
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: view.agendaMode = false
+      }
+    }
+    Flickable {
+      id: agendaScroll
+      anchors.top: agendaTitle.bottom
+      anchors.topMargin: 10
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: agendaError.visible ? agendaError.top : parent.bottom
+      contentWidth: width
+      contentHeight: agendaDays.implicitHeight
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+      Column {
+        id: agendaDays
+        width: agendaScroll.width
+        spacing: 12
+        Repeater {
+          model: view.weekDays
+          delegate: Column {
+            id: agendaDay
+            required property var modelData
+            required property int index
+            width: agendaDays.width
+            spacing: 5
+            Text {
+              text: view.dayLabel(agendaDay.modelData.date, agendaDay.index)
+              color: agendaDay.index === 0 ? view.accent : view.inkMuted
+              font.family: view.theme.textFontFamily
+              font.pixelSize: view.theme.px(11)
+              font.weight: Font.Bold
+              font.letterSpacing: 0.4
+            }
+            Text {
+              visible: agendaDay.modelData.events.length === 0
+              text: "Nothing"
+              color: Qt.rgba(1, 1, 1, 0.3)
+              font.family: view.theme.textFontFamily
+              font.pixelSize: view.theme.px(12)
+            }
+            Repeater {
+              model: agendaDay.modelData.events
+              delegate: Rectangle {
+                id: agendaRow
+                required property var modelData
+                readonly property bool task: !!modelData.taskId && view.tickTick
+                width: agendaDay.width
+                height: 34
+                radius: 8
+                color: view.theme.withAlpha(modelData.color, agendaRowMouse.containsMouse ? 0.3 : 0.18)
+                MouseArea {
+                  id: agendaRowMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: view.showFromAgenda(agendaDay.modelData.date, agendaRow.modelData)
+                }
+                // A task's checkbox; an event's colour bar.
+                Rectangle {
+                  x: agendaRow.task ? 9 : 6
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: agendaRow.task ? 16 : 3
+                  height: agendaRow.task ? 16 : parent.height - 12
+                  radius: agendaRow.task ? 8 : 1.5
+                  color: agendaRow.task ? (checkMouse.containsMouse ? agendaRow.modelData.color : "transparent") : agendaRow.modelData.color
+                  border.width: agendaRow.task ? 1.5 : 0
+                  border.color: agendaRow.modelData.color
+                  Text {
+                    anchors.centerIn: parent
+                    visible: agendaRow.task && checkMouse.containsMouse
+                    text: "󰄬"
+                    color: "#000000"
+                    font.family: view.theme.fontFamily
+                    font.pixelSize: 11
+                  }
+                  MouseArea {
+                    id: checkMouse
+                    enabled: agendaRow.task
+                    anchors.fill: parent
+                    anchors.margins: -5
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: view.calendar.taskAction(agendaRow.modelData, "complete")
+                  }
+                }
+                Text {
+                  x: agendaRow.task ? 34 : 15
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: parent.width - x - agendaTime.width - (trash.visible ? 34 : 14)
+                  text: agendaRow.modelData.title
+                  textFormat: Text.PlainText
+                  elide: Text.ElideRight
+                  color: Qt.lighter(agendaRow.modelData.color, 1.2)
+                  font.family: view.theme.textFontFamily
+                  font.pixelSize: view.theme.px(13)
+                  font.weight: Font.Medium
+                }
+                Text {
+                  id: agendaTime
+                  anchors.right: trash.visible ? trash.left : parent.right
+                  anchors.rightMargin: trash.visible ? 6 : 10
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: view.calendar.spanText(agendaRow.modelData)
+                  color: view.theme.withAlpha(Qt.lighter(agendaRow.modelData.color, 1.2), 0.7)
+                  font.family: view.theme.textFontFamily
+                  font.pixelSize: view.theme.px(11)
+                  font.features: { "tnum": 1 }
+                }
+                // Delete, while hovered: a first click arms it (red), a
+                // second deletes.
+                Text {
+                  id: trash
+                  property bool armed: false
+                  visible: agendaRow.task && (agendaRowMouse.containsMouse || trashMouse.containsMouse || armed)
+                  anchors.right: parent.right
+                  anchors.rightMargin: 10
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: "󰆴"
+                  color: armed ? view.theme.system.red : trashMouse.containsMouse ? view.ink : view.inkMuted
+                  font.family: view.theme.fontFamily
+                  font.pixelSize: view.theme.px(14)
+                  MouseArea {
+                    id: trashMouse
+                    anchors.fill: parent
+                    anchors.margins: -5
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                      if (!trash.armed) { trash.armed = true; return }
+                      view.calendar.taskAction(agendaRow.modelData, "delete")
+                    }
+                    onExited: trash.armed = false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    Text {
+      id: agendaError
+      visible: view.calendar.taskError !== ""
+      anchors.bottom: parent.bottom
+      width: parent.width
+      text: view.calendar.taskError
+      wrapMode: Text.Wrap
+      color: view.theme.system.red
+      font.family: view.theme.textFontFamily
+      font.pixelSize: view.theme.px(11)
+    }
+  }
+
+  component DetailButton: Rectangle {
+    id: detailButton
+    property string label: ""
+    property bool danger: false
+    signal activated()
+    width: detailButtonText.implicitWidth + 24
+    height: 28
+    radius: 14
+    color: danger ? view.theme.system.red : detailButtonMouse.containsMouse ? view.theme.fill("strong") : view.theme.fill("raised")
+    Text {
+      id: detailButtonText
+      anchors.centerIn: parent
+      text: detailButton.label
+      color: "#ffffff"
+      font.family: view.theme.fontFamily
+      font.pixelSize: view.theme.px(12)
+    }
+    MouseArea {
+      id: detailButtonMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: detailButton.activated()
     }
   }
 }

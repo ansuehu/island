@@ -49,7 +49,11 @@ Addon {
     var all = []
     for (var i = 0; i < urls.length; i++) {
       var own = read[urls[i]] || []
-      for (var j = 0; j < own.length; j++) all.push(Object.assign({ color: colorFor(own[j]) }, own[j]))
+      for (var j = 0; j < own.length; j++) {
+        // By id and start: a repeating task's next occurrence keeps the id.
+        if (own[j].taskId && doneTasks[own[j].taskId + "|" + own[j].start]) continue
+        all.push(Object.assign({ color: colorFor(own[j]) }, own[j]))
+      }
     }
     // Tasks just added from the island, until the feed has them.
     for (var k = 0; k < pending.length; k++) {
@@ -228,6 +232,67 @@ Addon {
   }
   function retry() { fetch() }
 
+  // ---------- TickTick tasks ----------
+
+  // The TickTick plugin's CLI, the island's one way to write to TickTick.
+  readonly property string tickTickCli: host.home
+    + "/.config/omarchy/plugins/io.github.sotoaugusto.ticktick/bin/omarchy-ticktick"
+  // Tasks completed or deleted from here: hidden at once, as the feed lags
+  // the write by about a minute, and forgotten after ten.
+  property var doneTasks: ({})
+  property string taskError: ""
+  // `event` is a task from the feed; `action` "complete" or "delete".
+  function taskAction(event, action) {
+    if (!event || !event.taskId || taskRunner.running) return
+    var key = event.taskId + "|" + event.start
+    var next = Object.assign({}, doneTasks)
+    next[key] = Date.now()
+    doneTasks = next
+    taskError = ""
+    taskRunner.taskId = key
+    taskRunner.command = [tickTickCli, action, event.taskId]
+    taskRunner.running = true
+  }
+  Process {
+    id: taskRunner
+    property string taskId: ""
+    stderr: StdioCollector { id: taskRunnerError; waitForEnd: true }
+    onExited: function(code) {
+      if (code !== 0) {
+        // Didn't happen: show it again, and say why.
+        var next = Object.assign({}, calendarAddon.doneTasks)
+        delete next[taskRunner.taskId]
+        calendarAddon.doneTasks = next
+        calendarAddon.taskError = String(taskRunnerError.text || "").trim() || "TickTick didn't take it"
+        return
+      }
+      calendarAddon.catchUp()
+    }
+  }
+  // Read the feeds every 15 s for two minutes, until a write shows there.
+  function catchUp() { catchUpTimer.tries = 0; catchUpTimer.restart() }
+  Timer {
+    id: catchUpTimer
+    interval: 15000
+    repeat: true
+    property int tries: 0
+    onTriggered: {
+      calendarAddon.retry()
+      if (++tries >= 8) stop()
+    }
+  }
+  Timer {
+    interval: 60000
+    repeat: true
+    running: Object.keys(calendarAddon.doneTasks).length > 0
+    onTriggered: {
+      var next = {}
+      for (var id in calendarAddon.doneTasks)
+        if (Date.now() - calendarAddon.doneTasks[id] < 10 * 60000) next[id] = calendarAddon.doneTasks[id]
+      calendarAddon.doneTasks = next
+    }
+  }
+
   // Every calendar in one go, each one's text after a "\x1e<index>" line and
   // followed by "\x1f<curl's exit code>". An answer for a list since changed
   // is dropped, and the fetch made again once it exits.
@@ -263,7 +328,9 @@ Addon {
     if (status !== "ready") status = "loading"
     fetcher.urls = urls
     fetcher.command = ["bash", "-c",
-      'i=0; for u in "$@"; do printf "\\036%d\\n" "$i"; curl -sfL --max-time 15 "$u"; printf "\\037%d\\n" "$?"; i=$((i+1)); done',
+      // All at once (each feed can take seconds), then printed in order.
+      'd=$(mktemp -d); i=0; for u in "$@"; do { curl -sfL --max-time 15 "$u" > "$d/$i"; echo $? > "$d/$i.rc"; } & i=$((i+1)); done; wait; '
+        + 'for ((j = 0; j < i; j++)); do printf "\\036%d\\n" "$j"; cat "$d/$j"; printf "\\037%s\\n" "$(cat "$d/$j.rc")"; done; rm -rf "$d"',
       "calendar"].concat(urls)
     fetcher.running = true
   }
@@ -342,7 +409,10 @@ Addon {
       calendar: calendarName || "",
       location: event.LOCATION ? plainText(event.LOCATION.value) : "",
       url: event.URL ? event.URL.value.trim() : "",
-      description: event.DESCRIPTION ? detailText(event.DESCRIPTION.value) : ""
+      description: event.DESCRIPTION ? detailText(event.DESCRIPTION.value) : "",
+      // A TickTick task's id (its feed's UID is "<id>@calendar.ticktick.com"),
+      // for completing or deleting it; "" for anything else.
+      taskId: event.UID && /@calendar\.ticktick\.com$/.test(event.UID.value) ? event.UID.value.split("@")[0] : ""
     }
   }
 
