@@ -107,11 +107,17 @@ Rectangle {
     enabled: t.available && t.clickable
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onClicked: t.opens ? t.opened() : t.clicked()
+    // A small tile that opens details (Bluetooth, Wi-Fi) opens them on a
+    // click anywhere, its icon included; a right click switches it.
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
+    onClicked: function(mouse) {
+      if (mouse.button === Qt.RightButton) { if (t.opens) t.clicked(); return }
+      t.opens ? t.opened() : t.clicked()
+    }
   }
   MouseArea {
     id: badgeMouse
-    visible: t.opens
+    visible: t.opens && !t.small
     anchors.fill: badge
     enabled: t.available
     cursorShape: Qt.PointingHandCursor
