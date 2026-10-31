@@ -88,9 +88,10 @@ Item {
   }
   // The shutter: above the click-to-close area.
   Rectangle {
-    anchors.horizontalCenter: parent.horizontalCenter
-    anchors.bottom: parent.bottom
-    anchors.bottomMargin: 14
+    // On the right edge, off the face in the middle.
+    anchors.right: parent.right
+    anchors.rightMargin: 14
+    anchors.verticalCenter: parent.verticalCenter
     visible: view.error === "" && devices.videoInputs.length > 0
     width: 52; height: 52; radius: 26
     color: "transparent"
