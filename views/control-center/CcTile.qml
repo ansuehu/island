@@ -21,6 +21,8 @@ Rectangle {
   // The round icon badge's size; addon tiles that draw their own badge
   // (Calendar) line up with it.
   readonly property real badgeSize: 38
+  // Laid out as Android's quick settings (icon over label) when a quarter row.
+  readonly property bool small: width > 0 && width < 160
   signal clicked()
   signal opened()
 
@@ -40,8 +42,8 @@ Rectangle {
   Rectangle {
     id: badge
     // Small: centred over the label, as Android's quick settings.
-    x: t.center.small ? (t.width - width) / 2 : (t.height - height) / 2
-    y: t.center.small ? 9 : (t.height - height) / 2
+    x: t.small ? (t.width - width) / 2 : (t.height - height) / 2
+    y: t.small ? 9 : (t.height - height) / 2
     width: t.badgeSize; height: t.badgeSize; radius: t.badgeSize / 2
     color: t.checked ? center.accent : center.well
     Behavior on color { MotionColorAnimation { theme: center.host.theme } }
@@ -55,7 +57,7 @@ Rectangle {
     }
   }
   Text {
-    visible: t.center.small
+    visible: t.small
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.bottom: parent.bottom
     anchors.bottomMargin: 8
@@ -69,7 +71,7 @@ Rectangle {
     font.weight: Font.Medium
   }
   Column {
-    visible: !t.center.small
+    visible: !t.small
     anchors.left: badge.right
     anchors.leftMargin: 9
     anchors.right: parent.right

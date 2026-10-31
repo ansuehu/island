@@ -26,9 +26,9 @@ ColumnLayout {
   // macOS shapes: switches are capsules, cards concentric with the island.
   readonly property real cardRadius: host.theme.radii.card
   // macOS's module sizes: a tile, a slider card, and the gap between them.
-  // Small controls: four to a row, icon over label, as Android's quick settings.
-  readonly property bool small: !!host.settings.smallControls
-  readonly property real tileHeight: small ? 76 : 64
+  readonly property real tileHeight: 64
+  // A small control's (a quarter row, icon over label); a row holding one is this tall.
+  readonly property real smallTileHeight: 76
   readonly property real sectionHeight: 86
   readonly property real gap: 8
   // The icon on a switched-on (accent) badge: white, as macOS's on blue,
