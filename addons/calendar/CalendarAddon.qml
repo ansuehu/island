@@ -259,8 +259,16 @@ Addon {
     running: calendarAddon.urls.length > 0
     onTriggered: calendarAddon.fetch()
   }
+  // The calendar opened on an event's day with its details (the next-event
+  // capsule); CalendarView takes `focusEvent` as it opens.
+  property var focusEvent: null
+  function showEvent(event) {
+    focusEvent = event
+    host.view = "calendar"
+  }
   function viewOpened() {
-    selectToday()
+    if (focusEvent) select(new Date(focusEvent.start))
+    else selectToday()
     if (urls.length > 0 && Date.now() - fetchedAt > openRefreshMs) fetch()
   }
   function retry() { fetch() }

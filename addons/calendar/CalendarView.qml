@@ -88,6 +88,9 @@ Item {
     view.expanded = false
     view.agendaMode = false
     view.confirmDelete = false
+    var focus = view.calendar.focusEvent
+    view.calendar.focusEvent = null
+    if (focus) Qt.callLater(function() { view.openDetail(focus) })
     Qt.callLater(function() { view.forceActiveFocus() })
   }
   onPreviewChanged: view.expanded = false
