@@ -17,10 +17,14 @@ ColumnLayout {
   // Off for the first layout each time the control center opens (as the
   // grid's cardsSettled), so only changes made while it's showing animate.
   property bool settled: false
+  // The newest two, until Show More opens the rest; closing resets it.
+  property bool showAll: false
+  readonly property var all: history.center.host.notifications.history
   Connections {
     target: history.center
     function onActiveChanged() {
       history.settled = false
+      history.showAll = false
       if (history.center.active) historySettleTimer.restart()
     }
   }
@@ -138,7 +142,7 @@ ColumnLayout {
     model: noteRows.model
     KeyedListModel {
       id: noteRows
-      values: history.center.host.notifications.history
+      values: history.showAll ? history.all : history.all.slice(0, 2)
       keyOf: function(row) { return history.center.host.notifications.key(row) }
     }
     // A banner fades in where it lands and out where it was, and the rest
@@ -343,6 +347,25 @@ ColumnLayout {
         }
         Tooltip { theme: history.center.host.theme; text: "Dismiss" }
       }
+    }
+  }
+
+  Text {
+    visible: history.all.length > 2
+    Layout.alignment: Qt.AlignHCenter
+    Layout.topMargin: 2
+    text: history.showAll ? "Show Less" : "Show " + (history.all.length - 2) + " More"
+    color: moreMouse.containsMouse ? history.center.text : history.center.textMuted
+    font.family: history.center.host.theme.textFontFamily
+    font.pixelSize: history.center.host.theme.px(12)
+    font.weight: Font.Medium
+    MouseArea {
+      id: moreMouse
+      anchors.fill: parent
+      anchors.margins: -6
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: history.showAll = !history.showAll
     }
   }
 }
