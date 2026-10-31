@@ -1249,7 +1249,10 @@ Item {
                 Text {
                   id: trash
                   property bool armed: false
-                  visible: agendaRow.task && (agendaRowMouse.containsMouse || trashMouse.containsMouse || armed)
+                  // Always there for a task (only faded out), so moving onto it
+                  // never loses the hover it needs to show.
+                  visible: agendaRow.task
+                  opacity: agendaRowMouse.containsMouse || trashMouse.containsMouse || armed ? 1 : 0
                   anchors.right: parent.right
                   anchors.rightMargin: 10
                   anchors.verticalCenter: parent.verticalCenter
