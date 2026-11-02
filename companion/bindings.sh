@@ -38,6 +38,8 @@ catalog=(
   'weather|Weather|show weather|||weather'
   'calendar|Calendar|show calendar|||calendar'
   'timer|Timer|show timer|||timer'
+  'shelf|Shelf|show shelf|||shelf'
+  'camera|Camera|show camera|||camera'
   'stats|System Stats|addonSettings stats|||stats'
   'agents|Agents|addonSettings agents|||agents'
   'displays|Displays|addonSettings displays|||displays'

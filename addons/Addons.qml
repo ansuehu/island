@@ -62,6 +62,10 @@ Item {
         { circle: true, color: "#ffffff", x: 0.5, y: 0.56, size: 0.1 }
       ],
       description: "A countdown on the island" },
+    { id: "shelf", name: "Shelf", icon: "󰆼", color: "#0a84ff", default: false, source: "shelf/ShelfAddon.qml",
+      description: "Park files, text, and links dragged onto the island" },
+    { id: "camera", name: "Camera", icon: "󰄀", color: "#30d158", default: false, source: "camera/CameraAddon.qml",
+      description: "A live camera mirror in the island" },
     { id: "stats", name: "System Stats", icon: "󰓅", color: "#232325", default: true, source: "stats/StatsAddon.qml",
       // Activity Monitor's: a red and a blue wave either side of a line,
       // over a faint grid.

@@ -620,7 +620,10 @@ Item {
   // An open view closes on a click outside the island (see outsideArea),
   // armed a moment after it opens so the click that opened it can't count.
   property bool outsideClickArmed: false
-  readonly property bool closesOnOutsideClick: surfaceOpen && outsideClickArmed
+  // Set while something is dragged out of the island (see addons/shelf), so
+  // the input region shrinks to the island and the drop reaches the window below.
+  property bool draggingOut: false
+  readonly property bool closesOnOutsideClick: surfaceOpen && outsideClickArmed && !draggingOut
   Timer {
     interval: 120
     running: root.surfaceOpen && !root.outsideClickArmed
@@ -1213,6 +1216,25 @@ Item {
           TextMetrics { id: clockMetrics; font: clockLabel.font; text: root.clockStacked ? root.clockWidestText : root.clockText }
 
           Views { id: views; host: root; anchors.fill: parent }
+
+          // Files, text, or links dragged onto the island open the Shelf
+          // addon and are parked there on drop. Drags started on the shelf
+          // itself (a source set) are left alone.
+          DropArea {
+            anchors.fill: parent
+            readonly property var shelf: root.addons.root("shelf")
+            enabled: !!shelf
+            onEntered: function(drag) {
+              if (drag.source) { drag.accepted = false; return }
+              drag.accept(Qt.CopyAction)
+              if (root.view !== "shelf") root.view = "shelf"
+            }
+            onDropped: function(drop) {
+              if (drop.source) return
+              shelf.add(drop)
+              drop.accept(Qt.CopyAction)
+            }
+          }
         }
         // A faint light edge around the open island, so its black still
         // reads against a dark wallpaper; fainter on the resting pill while
