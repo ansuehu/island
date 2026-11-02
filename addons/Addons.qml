@@ -19,7 +19,7 @@ Item {
   // once it's set, `text`'s %1 standing for its value. Its views' keybindings are tagged with its id in
   // companion/bindings.sh.
   readonly property var entries: [
-    { id: "weather", name: "Weather", icon: "󰖐", color: "#1f8ef1", default: false, source: "weather/WeatherAddon.qml",
+    { id: "weather", name: "Weather", icon: "󰖐", color: "#1f8ef1", default: true, source: "weather/WeatherAddon.qml",
       iconLayers: [
         { circle: true, color: "#ffd60a", x: 0.65, y: 0.37, size: 0.36 },
         { glyph: "󰅟", color: "#ffffff", opacity: 0.9, x: 0.45, y: 0.57, size: 0.74 }
@@ -31,7 +31,7 @@ Item {
         { key: "fahrenheit", label: "Temperature", detail: "Unit shown on the pill", type: "segmented", default: false,
           choices: [{ label: "°C", value: false }, { label: "°F", value: true }] }
       ] },
-    { id: "calendar", name: "Calendar", icon: "󰃭", color: "#f7f7f7", default: false, source: "calendar/CalendarAddon.qml",
+    { id: "calendar", name: "Calendar", icon: "󰃭", color: "#f7f7f7", default: true, source: "calendar/CalendarAddon.qml",
       iconLayers: [
         { rect: true, color: "#f2564f", x: 0.5, y: 0.13, width: 1, height: 0.36 },
         { date: "month", color: "#ffffff", weight: Font.Bold, x: 0.5, y: 0.17, size: 0.2 },
@@ -44,16 +44,16 @@ Item {
           choices: [{ label: "App", value: "app" }, { label: "Web", value: "web" }] }
       ] },
     // Before the timer, so a call holds the island over a countdown.
-    { id: "meetings", name: "Meetings", icon: "󰏲", color: "#30d158", default: false, source: "meetings/MeetingsAddon.qml",
+    { id: "meetings", name: "Meetings", icon: "󰏲", color: "#30d158", default: true, source: "meetings/MeetingsAddon.qml",
       description: "Calls on the island, with mute and hang up",
       options: [
         { key: "teams", label: "Teams", detail: "Calls and meetings, in the app or a browser", type: "switch", default: true },
         { key: "zoom", label: "Zoom", detail: "Meetings, in the app or a browser", type: "switch", default: true },
         { key: "meet", label: "Google Meet", detail: "Meetings in a browser", type: "switch", default: true },
-        { key: "discord", label: "Discord", detail: "Calls and voice channels, in the app or a browser", type: "switch", default: false },
+        { key: "discord", label: "Discord", detail: "Calls and voice channels, in the app or a browser", type: "switch", default: true },
         { key: "slack", label: "Slack", detail: "Huddles, in the app or a browser", type: "switch", default: true }
       ] },
-    { id: "timer", name: "Timer", icon: "󰔛", color: "#1c1c1e", default: false, source: "timer/TimerAddon.qml",
+    { id: "timer", name: "Timer", icon: "󰔛", color: "#1c1c1e", default: true, source: "timer/TimerAddon.qml",
       iconLayers: [
         { rect: true, color: "#ff9f0a", x: 0.5, y: 0.13, width: 0.2, height: 0.08, radius: 0.5 },
         { circle: true, color: "#ff9f0a", x: 0.5, y: 0.56, size: 0.68 },
@@ -62,9 +62,9 @@ Item {
         { circle: true, color: "#ffffff", x: 0.5, y: 0.56, size: 0.1 }
       ],
       description: "A countdown on the island" },
-    { id: "shelf", name: "Shelf", icon: "󰆼", color: "#0a84ff", default: false, source: "shelf/ShelfAddon.qml",
+    { id: "shelf", name: "Shelf", icon: "󰆼", color: "#0a84ff", default: true, source: "shelf/ShelfAddon.qml",
       description: "Park files, text, and links dragged onto the island" },
-    { id: "camera", name: "Camera", icon: "󰄀", color: "#30d158", default: false, source: "camera/CameraAddon.qml",
+    { id: "camera", name: "Camera", icon: "󰄀", color: "#30d158", default: true, source: "camera/CameraAddon.qml",
       description: "A live camera mirror in the island" },
     { id: "stats", name: "System Stats", icon: "󰓅", color: "#232325", default: true, source: "stats/StatsAddon.qml",
       // Activity Monitor's: a red and a blue wave either side of a line,
@@ -89,7 +89,7 @@ Item {
           return { line: [[0.5 + 0.25 * c, 0.5 + 0.25 * s], [0.5 + 0.33 * c, 0.5 + 0.33 * s]], color: "#ffffff", width: 0.075 }
         })),
       description: "Arrange monitors and set their modes" },
-    { id: "tray", name: "System Tray", icon: "󰀻", color: "#5e5ce6", default: false, source: "tray/TrayAddon.qml",
+    { id: "tray", name: "System Tray", icon: "󰀻", color: "#5e5ce6", default: true, source: "tray/TrayAddon.qml",
       iconLayers: [
         { rect: true, color: "#ffffff", opacity: 0.95, x: 0.5, y: 0.26, width: 0.8, height: 0.14, radius: 0.5 },
         { circle: true, color: "#34c759", x: 0.56, y: 0.26, size: 0.07 },
@@ -102,7 +102,7 @@ Item {
         { rect: true, color: "#c7c7cc", x: 0.66, y: 0.75, width: 0.34, height: 0.05, radius: 0.5 }
       ],
       description: "Apps tray icons and menus" },
-    { id: "plugins", name: "Plugins", icon: "󰐱", color: "#ff9f0a", default: false, source: "plugins/PluginsAddon.qml",
+    { id: "plugins", name: "Plugins", icon: "󰐱", color: "#ff9f0a", default: true, source: "plugins/PluginsAddon.qml",
       iconLayers: [
         { rect: true, color: "#ffffff", x: 0.33, y: 0.33, width: 0.3, height: 0.3, radius: 0.28 },
         { rect: true, color: "#ffffff", x: 0.67, y: 0.33, width: 0.3, height: 0.3, radius: 0.28 },
@@ -111,7 +111,7 @@ Item {
         { glyph: "󰐕", color: "#ffffff", x: 0.67, y: 0.67, size: 0.28 }
       ],
       description: "Open and switch Omarchy plugins" },
-    { id: "keyboard", name: "Keyboard Layout", icon: "󰌌", color: "#30b0c7", default: false, source: "keyboard/KeyboardAddon.qml",
+    { id: "keyboard", name: "Keyboard Layout", icon: "󰌌", color: "#30b0c7", default: true, source: "keyboard/KeyboardAddon.qml",
       iconLayers: [{ rect: true, color: "#ffffff", x: 0.5, y: 0.55, width: 0.8, height: 0.5, radius: 0.16 }]
         .concat([0.41, 0.55].reduce(function(keys, y) {
           return keys.concat([0.23, 0.365, 0.5, 0.635, 0.77].map(function(x) {
@@ -121,7 +121,7 @@ Item {
         .concat([{ rect: true, color: "#a9bcc2", x: 0.5, y: 0.69, width: 0.5, height: 0.09, radius: 0.4 }]),
       description: "Show the layout on the pill when it changes" },
     // All Models' robot; its Settings pane takes the picked agent's logo.
-    { id: "agents", name: "Agents", icon: "󰚩", color: "#5e5ce6", default: false, source: "agents/AgentsAddon.qml",
+    { id: "agents", name: "Agents", icon: "󰚩", color: "#5e5ce6", default: true, source: "agents/AgentsAddon.qml",
       description: "Agent limits, daily tokens, and Claude Code at work",
       options: [
         { key: "live", label: "Live Activity", detail: "Claude Code's steps on the island while it works", type: "switch", default: true },
@@ -166,7 +166,7 @@ Item {
             { label: "GPT-5.6 Sol (Deep Thinking)", value: "gpt-5.6-sol" },
             { label: "GPT-6 Sol (Next-Gen)", value: "gpt-6-sol" }
           ] },
-        { key: "menuSearch", label: "Omarchy Menu", detail: "Also search and ask from the Omarchy menu", type: "switch", default: false }
+        { key: "menuSearch", label: "Omarchy Menu", detail: "Also search and ask from the Omarchy menu", type: "switch", default: true }
       ] }
   ]
 

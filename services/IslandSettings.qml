@@ -25,42 +25,42 @@ Item {
       property real motionScale: 1.5
       property bool clock24h: true
       property bool clockAmPm: false
-      property string clockFormat: "time"
-      property string hoverStyle: "none"
+      property string clockFormat: "short"
+      property string hoverStyle: "capsules"
       property bool hoverExpand: hoverStyle === "expand"
       property bool hoverCapsules: hoverStyle === "capsules"
-      property string glanceLeft1: "workspace"
-      property string glanceLeft2: "battery"
+      property string glanceLeft1: "none"
+      property string glanceLeft2: "none"
       property string glanceRight1: "weather"
       property string glanceRight2: "volume"
       property bool glanceMediaSatellite: true
-      property bool glanceMediaSatelliteBorder: true
-      property bool capsuleWorkspaces: false
-      property bool capsuleTray: true
-      property bool capsuleSystem: true
-      property bool capsuleEvent: false
-      property string capsuleOrder: ""
-      property string capsuleEventRange: "hour"
-      property bool capsuleWeather: false
-      property bool capsuleNotifications: true
+      property bool glanceMediaSatelliteBorder: false
+      property bool capsuleWorkspaces: true
+      property bool capsuleTray: false
+      property bool capsuleSystem: false
+      property bool capsuleEvent: true
+      property string capsuleOrder: "workspaces,media|event,tray,weather,notifications,system"
+      property string capsuleEventRange: "any"
+      property bool capsuleWeather: true
+      property bool capsuleNotifications: false
       property bool capsuleMedia: false
       property bool mediaPill: true
-      property string mediaApps: ""
+      property string mediaApps: "spotify, feishin"
       property bool volumeHud: true
       property bool brightnessHud: true
-      property int bannerSeconds: 5
-      property string notificationStyle: "expanded"
-      property string mutedApps: ""
+      property int bannerSeconds: 8
+      property string notificationStyle: "compact"
+      property string mutedApps: "omarchy-action"
       property bool notch: false
-      property bool reserveTop: false
+      property bool reserveTop: true
       // Controls drawn a quarter wide (icon over label); the rest are half.
-      property string controlCenterSmall: ""
+      property string controlCenterSmall: "bluetooth,focus,awake,night,game,power,keyboard,screensaver,screenshot,dictate,reminder,shelf.shelf,camera.camera,timer.timer,screenrecord,microphoneMute,wifi,calendar.today"
       // What a click on the resting island does, per button (see Island.qml).
       property string leftClick: "activity"
-      property string rightClick: "none"
-      property real pillScale: 1
-      property real topGap: 8
-      property real barGap: 4
+      property string rightClick: "controls"
+      property real pillScale: 0.7
+      property real topGap: 1
+      property real barGap: 1
       property bool downloads: true
       property bool clipboard: true
       property bool screenRecordingActivity: true
@@ -76,18 +76,18 @@ Item {
       property string textFontMode: "island"
       property string customFont: ""
       property real textScale: 1
-      property string controlCenterOrder: "wifi,bluetooth,focus,night,sound,microphone,display"
-      property string controlCenterHidden: "game,power,keyboard"
+      property string controlCenterOrder: "wifi,bluetooth,focus,microphoneMute,awake,night,screenrecord,timer.timer,shelf.shelf,camera.camera,sound,microphone,game,power,keyboard,screensaver,screenshot,dictate,reminder,calendar.today,display"
+      property string controlCenterHidden: "game,power,keyboard,night,microphoneMute,calendar.today"
       property bool microphoneMuteControl: false
-      property bool stayAwakeControl: false
+      property bool stayAwakeControl: true
       property bool screensaverControl: false
       property bool screenshotControl: false
-      property bool screenRecordControl: false
+      property bool screenRecordControl: true
       property bool dictateControl: false
       property bool reminderControl: false
-      property bool autoHideFullscreen: false
+      property bool autoHideFullscreen: true
       property bool autoHideTiling: false
-      property bool menuApps: false
+      property bool menuApps: true
       // Before Ask AI was an addon; carried over and cleared (see Addons.qml).
       property string askAi: ""
       // Addon id → enabled, and addon id → its options (see addons/Addons.qml).
