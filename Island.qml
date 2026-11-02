@@ -294,10 +294,11 @@ Item {
   onAutoHideTilingChanged: if (autoHideTiling) tilingRefreshTimer.restart()
   Connections {
     target: Hyprland
-    enabled: root.autoHideTiling
+    enabled: root.autoHideTiling || root.settings.autoHideFullscreen
     function onRawEvent(event) {
       var n = String((event && event.name) || "")
-      if (["changefloatingmode", "openwindow", "closewindow", "movewindowv2"].indexOf(n) >= 0)
+      // "fullscreen": a window's mode changed; the toplevels' IPC data says which.
+      if (["changefloatingmode", "openwindow", "closewindow", "movewindowv2", "fullscreen"].indexOf(n) >= 0)
         tilingRefreshTimer.restart()
     }
   }
@@ -672,10 +673,15 @@ Item {
         readonly property bool hasFullscreen: {
           var ws = activeWorkspace
           if (!ws) return false
-          if (ws.hasFullscreen) return true
+          // Real fullscreen only: Hyprland's workspace flag also counts a
+          // window made full width (maximized, fullscreen mode 1), which the
+          // Omarchy bar stays up for, so the island does too.
+          if (!ws.hasFullscreen) return false
           var tl = ws.toplevels.values
-          for (var i = 0; i < tl.length; i++)
-            if (tl[i].wayland && tl[i].wayland.fullscreen) return true
+          for (var i = 0; i < tl.length; i++) {
+            var ipc = tl[i].lastIpcObject
+            if ((ipc && (ipc.fullscreen & 2)) || (tl[i].wayland && tl[i].wayland.fullscreen)) return true
+          }
           return false
         }
         readonly property bool hasScreensaver: root.screensaverActive
