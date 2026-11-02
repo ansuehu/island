@@ -81,7 +81,7 @@ Item {
   readonly property bool tickTick: grammarLoader.status === Loader.Ready
   Loader { id: grammarLoader; source: "TickTickGrammar.qml" }
 
-  implicitHeight: Math.max(month.y + month.height, left.implicitHeight)
+  implicitHeight: Math.max(month.y + month.height + (view.agendaMode ? 0 : clockText.height + 6), left.implicitHeight)
 
   onActiveChanged: {
     if (!active) return
@@ -1146,6 +1146,22 @@ Item {
         held = 0
       }
     }
+  }
+
+  // A little clock in the bottom-right corner, under the month.
+  Text {
+    id: clockText
+    visible: !view.agendaMode
+    anchors.right: month.right
+    anchors.top: month.bottom
+    anchors.topMargin: 6
+    textFormat: Text.PlainText
+    text: view.host.clockTimeText
+    color: view.inkMuted
+    font.family: view.theme.textFontFamily
+    font.pixelSize: view.theme.px(11)
+    font.weight: Font.Medium
+    font.features: { "tnum": 1 }
   }
 
   // ---------- The next seven days ----------
