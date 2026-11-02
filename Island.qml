@@ -920,7 +920,11 @@ Item {
           // How much of the island's right end the stacked media takes.
           // The stacked chips' row, with its margins, or nothing.
           readonly property real stackWidth: stackRow.implicitWidth > 0 ? stackRow.implicitWidth + 24 : 0
-          property real stackShift: island.stackWidth
+          // The resting pill's battery, with its margin, on a laptop.
+          readonly property bool showsBattery: root.activities.hasBattery && root.settings.restBattery
+            && root.view === "rest" && !root.setup.needsSetup && !island.activePill && !island.isGlanceExpanded
+          readonly property real batteryWidth: showsBattery ? restBattery.width + 14 : 0
+          property real stackShift: island.stackWidth + island.batteryWidth
           Behavior on stackShift { MotionAnimation { theme: root.theme; pace: "standard" } }
           readonly property bool glanceHovered: clockHover.hovered || islandPointerHover.hovered || (satellitePill && satellitePill.isHovered)
           property bool glanceActive: false
@@ -990,7 +994,7 @@ Item {
             : activePill ? activePill.pillWidth + (activePill.keepsClock ? clockExtra : 0) + island.stackWidth
             : root.view === "feedback" ? 280
             : root.setup.needsSetup ? (root.setup.warning.length > 24 ? 320 : 250)
-            : 100 + clockExtra
+            : 100 + clockExtra + island.batteryWidth
           readonly property real targetHeight: activeSurface ? activeSurface.islandHeight
             : island.isGlanceExpanded ? (root.mediaPill ? root.pillHeight : root.clockHeight)
             : activePill ? activePill.pillHeight
@@ -1347,6 +1351,23 @@ Item {
                 onClicked: root.view = "player"
               }
             }
+          }
+          // The battery on the resting pill: filled to the level, green with
+          // a bolt while charging, red at 20% and under.
+          BatteryIcon {
+            id: restBattery
+            opacity: island.showsBattery ? 1 : 0
+            visible: opacity > 0.01
+            Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
+            anchors.right: parent.right
+            anchors.rightMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            width: 22
+            height: 11
+            level: Math.max(0, root.activities.batteryLevel)
+            charging: root.activities.onPower
+            low: !root.activities.onPower && root.activities.batteryLevel <= 20
+            color: root.theme.withAlpha(root.theme.text, 0.85)
           }
           TextMetrics { id: clockMetrics; font: clockLabel.font; text: root.clockStacked ? root.clockWidestText : root.clockText }
 

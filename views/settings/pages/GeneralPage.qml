@@ -75,6 +75,19 @@ ColumnLayout {
     }
     SettingsRow {
       view: page.view
+      icon: "󰁹"
+      iconTint: page.system.green
+      label: "Battery"
+      detail: "A little battery at the right of the resting island, on a laptop"
+      visible: page.view.host.activities.hasBattery
+      SettingsSwitch {
+        view: page.view
+        checked: page.view.settings.restBattery
+        onToggled: function(on) { page.view.settings.restBattery = on }
+      }
+    }
+    SettingsRow {
+      view: page.view
       icon: "󰌢"
       iconTint: page.system.indigo
       label: "Notch style"
