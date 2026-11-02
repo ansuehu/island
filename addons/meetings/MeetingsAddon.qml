@@ -18,6 +18,7 @@ Addon {
   id: meetingsAddon
   pill: Component { CallPill { meetings: meetingsAddon } }
   ongoing: inCall
+  stackText: inCall ? timeText(elapsed) : ""
   // Grown, as it starts, and as it ends, it hides the clock and takes the
   // island to itself.
   pillAsks: expanded || intro || ended

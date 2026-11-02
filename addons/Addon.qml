@@ -52,6 +52,11 @@ Item {
   property real pillHeight: restHeight
   property real pillRadius: 0
   function pillClicked() { host.view = "controls" }
+  // While another live activity holds the island, an ongoing pill shrinks
+  // to a chip beside it: stackGlyph (the addon's icon when empty) and
+  // stackText, if any; a click on it is pillClicked().
+  property string stackGlyph: ""
+  property string stackText: ""
 
   property var views: []
   property var tiles: []

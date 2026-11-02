@@ -83,7 +83,10 @@ Item {
     && (addons.ongoing || downloadPill || sharePill)
   // Sharing beside another activity shrinks to its glyph, as the others do.
   readonly property bool shareStacked: resting && screenSharing && settings.screenShareActivity !== false && !sharePill
-  readonly property real stackWidth: (mediaStacked ? 92 : 0) + (recordingStacked ? 74 : 0) + (shareStacked ? 34 : 0)
+  // A download or update under way beside another activity: its glyph and progress.
+  readonly property bool downloadStacked: resting && (downloads.active || packages.active) && !downloadPill
+  // Every other addon with an ongoing activity, as a chip each.
+  readonly property var stackedAddons: resting && addons.ongoing ? addons.stacked : []
   // The live-activity pills' height, and the resting clock's.
   readonly property real pillHeight: settings.notch ? 40 : 44
   // Room the top bar mode keeps clear: the pill, and its gap from the edge.
@@ -915,7 +918,9 @@ Item {
           readonly property Item activeSurface: views.surfaceFor(root.view)
           readonly property Item activePill: pills.active
           // How much of the island's right end the stacked media takes.
-          property real stackShift: root.stackWidth
+          // The stacked chips' row, with its margins, or nothing.
+          readonly property real stackWidth: stackRow.implicitWidth > 0 ? stackRow.implicitWidth + 24 : 0
+          property real stackShift: island.stackWidth
           Behavior on stackShift { MotionAnimation { theme: root.theme; pace: "standard" } }
           readonly property bool glanceHovered: clockHover.hovered || islandPointerHover.hovered || (satellitePill && satellitePill.isHovered)
           property bool glanceActive: false
@@ -982,7 +987,7 @@ Item {
             : baseGlanceWidth + clockExtra
           readonly property real targetWidth: activeSurface ? activeSurface.islandWidth
             : island.isGlanceExpanded ? island.glanceWidth
-            : activePill ? activePill.pillWidth + (activePill.keepsClock ? clockExtra : 0) + root.stackWidth
+            : activePill ? activePill.pillWidth + (activePill.keepsClock ? clockExtra : 0) + island.stackWidth
             : root.view === "feedback" ? 280
             : root.setup.needsSetup ? (root.setup.warning.length > 24 ? 320 : 250)
             : 100 + clockExtra
@@ -1156,103 +1161,191 @@ Item {
             width: 7; height: 7; radius: 3.5
             color: root.theme.system.red
           }
-          // The music, stacked into the same island beside the other activity.
-          Item {
-            id: stackedMedia
-            opacity: root.mediaStacked ? 1 : 0
-            visible: opacity > 0.01
-            Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
+          // The live activities stacked beside the one holding the island,
+          // right to left: the music, a recording, sharing, a download, and
+          // any other addon's ongoing activity.
+          Row {
+            id: stackRow
             anchors.right: parent.right
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            width: 68
             height: 26
-            Row {
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: 8
-              ClippingRectangle {
-                width: 24
-                height: 24
-                radius: 7
-                color: root.theme.fill("raised")
+            spacing: 12
+            // Another addon's ongoing activity: its glyph, and its text if it has one.
+            Repeater {
+              model: root.stackedAddons
+              delegate: Item {
+                id: stackedAddon
+                required property var modelData
+                readonly property var entry: root.addons.entry(modelData.addon.id) || {}
+                readonly property color ink: root.settings.colorfulLiveActivities && modelData.tint !== undefined ? modelData.tint : root.theme.accent
                 anchors.verticalCenter: parent.verticalCenter
-                Image {
+                width: addonChip.implicitWidth
+                height: 26
+                Row {
+                  id: addonChip
+                  anchors.verticalCenter: parent.verticalCenter
+                  spacing: 6
+                  Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    textFormat: Text.PlainText
+                    text: stackedAddon.modelData.stackGlyph || stackedAddon.entry.icon || ""
+                    color: stackedAddon.ink
+                    font.family: root.theme.fontFamily
+                    font.pixelSize: root.theme.px(16)
+                  }
+                  Text {
+                    visible: text !== ""
+                    anchors.verticalCenter: parent.verticalCenter
+                    textFormat: Text.PlainText
+                    text: stackedAddon.modelData.stackText
+                    color: stackedAddon.ink
+                    font.family: root.theme.textFontFamily
+                    font.pixelSize: root.theme.px(12)
+                    font.weight: Font.Medium
+                    font.features: { "tnum": 1 }
+                  }
+                }
+                MouseArea {
                   anchors.fill: parent
-                  source: root.nowPlaying.art
-                  sourceSize.width: 48
-                  sourceSize.height: 48
-                  fillMode: Image.PreserveAspectCrop
-                  asynchronous: true
+                  anchors.margins: -4
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: stackedAddon.modelData.pillClicked()
                 }
               }
-              SoundWave {
-                bars: 3
-                maxHeight: 14
-                playing: root.nowPlaying.playing
-                color: root.nowPlaying.tint
+            }
+            // A download or system update: its glyph, and how far along.
+            Item {
+              id: stackedDownload
+              opacity: root.downloadStacked ? 1 : 0
+              visible: opacity > 0.01
+              Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
+              anchors.verticalCenter: parent.verticalCenter
+              width: downloadChip.implicitWidth
+              height: 26
+              readonly property bool files: root.downloads.active
+              readonly property color ink: root.settings.colorfulLiveActivities ? root.theme.system.green : root.theme.accent
+              Row {
+                id: downloadChip
                 anchors.verticalCenter: parent.verticalCenter
+                spacing: 6
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: stackedDownload.files ? "󰇚" : "󰚰"
+                  color: stackedDownload.ink
+                  font.family: root.theme.fontFamily
+                  font.pixelSize: root.theme.px(16)
+                }
+                Text {
+                  visible: text !== ""
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: stackedDownload.files && root.downloads.progress >= 0 ? Math.round(root.downloads.progress * 100) + "%" : ""
+                  color: stackedDownload.ink
+                  font.family: root.theme.textFontFamily
+                  font.pixelSize: root.theme.px(12)
+                  font.weight: Font.Medium
+                  font.features: { "tnum": 1 }
+                }
+              }
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -4
+                cursorShape: Qt.PointingHandCursor
+                onClicked: stackedDownload.files ? root.openDownloads() : root.view = "controls"
               }
             }
-            MouseArea {
-              anchors.fill: parent
-              anchors.margins: -4
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.view = "player"
-            }
-          }
-          // Screen sharing, stacked: its glyph.
-          Text {
-            id: stackedShare
-            opacity: root.shareStacked ? 1 : 0
-            visible: opacity > 0.01
-            Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
-            anchors.right: root.recordingStacked ? stackedRecording.left : root.mediaStacked ? stackedMedia.left : parent.right
-            anchors.rightMargin: root.recordingStacked || root.mediaStacked ? 12 : 14
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.shareKind === "window" ? "󰖯" : "󰍹"
-            color: root.settings.colorfulLiveActivities ? root.theme.system.green : root.theme.accent
-            font.family: root.theme.fontFamily
-            font.pixelSize: root.theme.px(16)
-            MouseArea {
-              anchors.fill: parent
-              anchors.margins: -4
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.view = "share"
-            }
-          }
-          // The recording, stacked the same way: its dot and time; a click stops it.
-          Item {
-            id: stackedRecording
-            opacity: root.recordingStacked ? 1 : 0
-            visible: opacity > 0.01
-            Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
-            anchors.right: root.mediaStacked ? stackedMedia.left : parent.right
-            anchors.rightMargin: root.mediaStacked ? 12 : 14
-            anchors.verticalCenter: parent.verticalCenter
-            width: 50
-            height: 26
-            readonly property color ink: root.settings.colorfulLiveActivities ? root.theme.system.red : root.theme.accent
-            Rectangle {
-              anchors.verticalCenter: parent.verticalCenter
-              width: 9; height: 9; radius: 4.5
-              color: stackedRecording.ink
-              opacity: root.recorder.recording ? 1 : 0.35
-            }
+            // Screen sharing, stacked: its glyph.
             Text {
-              anchors.right: parent.right
+              id: stackedShare
+              opacity: root.shareStacked ? 1 : 0
+              visible: opacity > 0.01
+              Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
               anchors.verticalCenter: parent.verticalCenter
-              text: root.recorder.recording ? root.recorder.timeText(root.recorder.elapsed) : "…"
-              color: stackedRecording.ink
-              font.family: root.theme.textFontFamily
-              font.pixelSize: root.theme.px(12)
-              font.weight: Font.Medium
-              font.features: { "tnum": 1 }
+              text: root.shareKind === "window" ? "󰖯" : "󰍹"
+              color: root.settings.colorfulLiveActivities ? root.theme.system.green : root.theme.accent
+              font.family: root.theme.fontFamily
+              font.pixelSize: root.theme.px(16)
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -4
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.view = "share"
+              }
             }
-            MouseArea {
-              anchors.fill: parent
-              anchors.margins: -4
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.recorder.stop()
+            // The recording, stacked the same way: its dot and time; a click stops it.
+            Item {
+              id: stackedRecording
+              opacity: root.recordingStacked ? 1 : 0
+              visible: opacity > 0.01
+              Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
+              anchors.verticalCenter: parent.verticalCenter
+              width: 50
+              height: 26
+              readonly property color ink: root.settings.colorfulLiveActivities ? root.theme.system.red : root.theme.accent
+              Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 9; height: 9; radius: 4.5
+                color: stackedRecording.ink
+                opacity: root.recorder.recording ? 1 : 0.35
+              }
+              Text {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.recorder.recording ? root.recorder.timeText(root.recorder.elapsed) : "…"
+                color: stackedRecording.ink
+                font.family: root.theme.textFontFamily
+                font.pixelSize: root.theme.px(12)
+                font.weight: Font.Medium
+                font.features: { "tnum": 1 }
+              }
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -4
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.recorder.stop()
+              }
+            }
+            // The music, stacked into the same island beside the other activity.
+            Item {
+              id: stackedMedia
+              opacity: root.mediaStacked ? 1 : 0
+              visible: opacity > 0.01
+              Behavior on opacity { MotionAnimation { theme: root.theme; pace: "standard"; curve: "fade" } }
+              anchors.verticalCenter: parent.verticalCenter
+              width: 68
+              height: 26
+              Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                ClippingRectangle {
+                  width: 24
+                  height: 24
+                  radius: 7
+                  color: root.theme.fill("raised")
+                  anchors.verticalCenter: parent.verticalCenter
+                  Image {
+                    anchors.fill: parent
+                    source: root.nowPlaying.art
+                    sourceSize.width: 48
+                    sourceSize.height: 48
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                  }
+                }
+                SoundWave {
+                  bars: 3
+                  maxHeight: 14
+                  playing: root.nowPlaying.playing
+                  color: root.nowPlaying.tint
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+              }
+              MouseArea {
+                anchors.fill: parent
+                anchors.margins: -4
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.view = "player"
+              }
             }
           }
           TextMetrics { id: clockMetrics; font: clockLabel.font; text: root.clockStacked ? root.clockWidestText : root.clockText }

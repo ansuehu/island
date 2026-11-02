@@ -13,6 +13,7 @@ Addon {
   pill: Component { TimerPill { timer: timerAddon } }
   ongoing: phase !== "idle"
   pillWidth: 240
+  stackText: timeText(remaining)
   function pillClicked() { host.view = "timer" }
 
   Component {

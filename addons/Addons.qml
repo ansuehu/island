@@ -331,6 +331,9 @@ Item {
     return first
   }
 
+  // The other addons with an ongoing activity, stacked beside it as chips.
+  readonly property var stacked: loaded.filter(function(root) { return root.ongoing && root.pill && root !== ongoing })
+
   // Every enabled addon's views, and its control center tiles keyed
   // "<addon id>.<tile key>".
   readonly property var views: {
