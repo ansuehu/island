@@ -36,6 +36,8 @@ Rectangle {
 
   onValueChanged: if (!input.activeFocus) input.text = value
   Component.onCompleted: input.text = value
+  // Shows `value` again, dropping whatever was typed.
+  function reset() { input.text = value }
   function commit() {
     var next = input.text.trim()
     input.text = next

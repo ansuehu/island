@@ -110,6 +110,8 @@ ColumnLayout {
         from: 0
         to: 32
         step: 1
+        editable: true
+        unit: "px"
         value: page.view.settings.topGap
         onMoved: function(v) { page.view.settings.topGap = v }
       }
@@ -125,6 +127,8 @@ ColumnLayout {
         from: 0
         to: 32
         step: 1
+        editable: true
+        unit: "px"
         value: page.view.settings.barGap
         onMoved: function(v) { page.view.settings.barGap = v }
       }
