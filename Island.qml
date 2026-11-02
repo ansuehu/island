@@ -232,6 +232,36 @@ Item {
     if (activities.ready && settings.workspaceHud && focusedWorkspaceId > 0) showFeedback("", 1200, "workspaces")
   }
 
+  // ---------- Workspace layouts ----------
+
+  // Omarchy's per-workspace layout (Super + L), with the bar's glyphs: a
+  // square tiles, a circle scrolls, a triangle floats. Only Omarchy's script
+  // knows floating, so the mode is read from it; Super + L says nothing but
+  // its notification (glyph 󱂬), which becomes the LayoutPill instead.
+  readonly property var layoutModes: [
+    { mode: "dwindle", glyph: "󱓻", name: "Tiling" },
+    { mode: "scrolling", glyph: "󰝥", name: "Scrolling" },
+    { mode: "floating", glyph: "󰔶", name: "Floating" }
+  ]
+  property string workspaceMode: "dwindle"
+  readonly property int workspaceModeIndex: Math.max(0, layoutModes.findIndex(function(m) { return m.mode === workspaceMode }))
+  readonly property bool layoutPill: view === "feedback" && feedbackKind === "layout"
+  function readWorkspaceMode() {
+    workspaceModeProc.running = false
+    workspaceModeProc.running = true
+  }
+  Process {
+    id: workspaceModeProc
+    command: ["omarchy-hyprland-workspace-layout-current"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var mode = text.trim()
+        if (mode) root.workspaceMode = mode
+        root.showFeedback("", 1400, "layout")
+      }
+    }
+  }
+
   // ---------- Device live activities: battery, Bluetooth ----------
 
   readonly property var activities: deviceActivities
@@ -470,6 +500,11 @@ Item {
     home: root.home
     historyVisible: root.view === "controls"
     onArrived: function(row) {
+      if (row.glyph === "󱂬") {
+        notificationClient.dismiss(Object.assign({ isActive: true }, row))
+        root.readWorkspaceMode()
+        return
+      }
       // Messages from the same app and chat while its banner is up stack
       // into it: the newest shows, with how many came.
       var group = String(row.app || "") + "|" + String(row.summary || "")
@@ -1085,6 +1120,7 @@ Item {
             ClipboardPill { host: root; anchors.fill: parent }
             DevicePill { host: root; anchors.fill: parent }
             WorkspacePill { host: root; anchors.fill: parent }
+            LayoutPill { host: root; anchors.fill: parent }
             AddonPills { host: root; anchors.fill: parent }
             RecordingPill { host: root; anchors.fill: parent }
             ScreenSharePill { host: root; anchors.fill: parent }
