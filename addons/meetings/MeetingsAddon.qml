@@ -61,8 +61,9 @@ Addon {
   }
 
   // The mic streams of the meeting apps that are on. A browser's count while
-  // one of its windows shows a meeting site, and then for the rest of the
-  // call, so switching tabs doesn't end it.
+  // one of its windows shows a meeting site, and then, so switching tabs
+  // doesn't end the call, the ones that did for the rest of it: another
+  // tab's mic (or one the browser keeps) doesn't keep a hung-up call going.
   readonly property var callStreams: {
     var out = []
     for (var i = 0; i < inStreams.length; i++) {
@@ -72,7 +73,8 @@ Addon {
       var app = Apps.appFor(props, windowClasses[props["application.process.id"]])
       if (!app || !appOn(app)) continue
       var site = app.sites ? siteOpen(app) : null
-      if (app.sites && !site && !(inCall && callApp && callApp.id === app.id)) continue
+      if (app.sites && !site && !(inCall && callApp && callApp.id === app.id
+          && callNodes.indexOf(inStreams[i].id) >= 0)) continue
       out.push({ node: inStreams[i], app: app, site: site })
     }
     return out
@@ -111,6 +113,7 @@ Addon {
   }
 
   property bool inCall: false
+  property var callNodes: []
   property var callApp: null
   property var callSite: null
   property real startedAt: 0
@@ -153,7 +156,10 @@ Addon {
       introTimer.restart()
     }
     for (var i = 0; i < callStreams.length; i++)
-      if (callStreams[i].site && callStreams[i].app.id === callApp.id) callSite = callStreams[i].site
+      if (callStreams[i].site && callStreams[i].app.id === callApp.id) {
+        callSite = callStreams[i].site
+        if (callNodes.indexOf(callStreams[i].node.id) < 0) callNodes = callNodes.concat([callStreams[i].node.id])
+      }
   }
   // As a call starts, the app's icon and name take the clock's place a
   // moment.
@@ -207,6 +213,7 @@ Addon {
     inCall = false
     callApp = null
     callSite = null
+    callNodes = []
     cameraOn = false
   }
   Timer {

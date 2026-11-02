@@ -56,9 +56,6 @@ Item {
   }
   property string pendingShareKind: "screen"
   Timer { id: shareCheckDelay; interval: 600; onTriggered: shareCheck.running = true }
-  // A call hung up doesn't always send Hyprland's stop event (or sends it
-  // before the stream is gone), so while a share shows, keep asking.
-  Timer { interval: 3000; repeat: true; running: root.screenSharing; onTriggered: shareCheck.running = true }
   Process {
     id: shareCheck
     command: ["python3", decodeURIComponent(String(Qt.resolvedUrl("views/share/share-app.py")).replace("file://", "")), "--active"]
