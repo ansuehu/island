@@ -60,8 +60,9 @@ Item {
       property string rightClick: "controls"
       property real pillScale: 0.7
       property real topGap: 1
-      // A little battery at the resting pill's right end, on a laptop.
-      property bool restBattery: true
+      // A little battery at the resting pill's right end, on a laptop:
+      // "off", "icon", or "percent" (its level beside it).
+      property string restBattery: "percent"
       property real barGap: 1
       property bool downloads: true
       property bool clipboard: true

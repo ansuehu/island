@@ -78,12 +78,13 @@ ColumnLayout {
       icon: "󰁹"
       iconTint: page.system.green
       label: "Battery"
-      detail: "A little battery at the right of the resting island, on a laptop"
+      detail: "On the resting island, on a laptop"
       visible: page.view.host.activities.hasBattery
-      SettingsSwitch {
+      SettingsSegmented {
         view: page.view
-        checked: page.view.settings.restBattery
-        onToggled: function(on) { page.view.settings.restBattery = on }
+        options: [{ label: "Off", value: "off" }, { label: "Icon", value: "icon" }, { label: "Icon & %", value: "percent" }]
+        value: page.view.settings.restBattery
+        onPicked: function(v) { page.view.settings.restBattery = v }
       }
     }
     SettingsRow {
