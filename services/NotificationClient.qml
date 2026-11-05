@@ -157,7 +157,6 @@ Item {
       focusProc.startDetached()
     }
   }
-  Process { id: focusProc }
 
   function clearAll() {
     history = []
