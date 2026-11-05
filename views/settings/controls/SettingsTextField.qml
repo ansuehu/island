@@ -9,9 +9,15 @@ Rectangle {
   required property var view
   property string value: ""
   property string placeholder: ""
+  // Shows dots, for a password.
+  property bool secret: false
+  // Forgets the text once committed: a password that's written, never shown.
+  property bool writeOnly: false
   // A glyph before the text (a pin for a place), or none.
   property string icon: ""
   signal committed(string value)
+  // As it's typed, before it's committed.
+  signal edited(string value)
   implicitWidth: 200
   implicitHeight: 28
   radius: 6
@@ -39,9 +45,11 @@ Rectangle {
   // Shows `value` again, dropping whatever was typed.
   function reset() { input.text = value }
   function commit() {
-    var next = input.text.trim()
+    // A password's spaces are its own.
+    var next = field.secret ? input.text : input.text.trim()
     input.text = next
     if (next !== field.value) field.committed(next)
+    if (field.writeOnly) input.text = ""
   }
 
   MouseArea {
@@ -79,12 +87,14 @@ Rectangle {
     anchors.rightMargin: 10
     anchors.verticalCenter: parent.verticalCenter
     clip: true
+    echoMode: field.secret ? TextInput.Password : TextInput.Normal
     color: field.view.text
     selectionColor: field.view.accent
     selectedTextColor: field.view.accentInk
     font.family: field.view.host.theme.textFontFamily
     font.letterSpacing: field.view.host.theme.tracking(field.view.host.theme.textFontFamily, field.view.detailFontSize)
     font.pixelSize: field.view.detailFontSize
+    onTextEdited: field.edited(field.secret ? text : text.trim())
     onAccepted: { field.commit(); field.view.forceActiveFocus() }
     onActiveFocusChanged: if (!activeFocus) field.commit()
     Keys.onEscapePressed: function(event) {

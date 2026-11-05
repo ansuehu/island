@@ -117,7 +117,6 @@ ColumnLayout {
 
   ListView {
     id: notes
-    OverlayScrollbar { flickable: notes; parent: notes; theme: history.center.host.theme }
     // Clear All (or dismissing the last banner) lets the rows fade out and
     // the frame close before the list goes, rather than dropping it at once.
     opacity: history.empty ? 0 : 1
@@ -189,7 +188,11 @@ ColumnLayout {
       id: note
       required property var entry
       readonly property var modelData: entry
-      readonly property bool hovered: noteMouse.containsMouse || closeMouse.containsMouse
+      // The whole row, × included. Not its mouse areas': the × carries a
+      // Tooltip, which takes the hover of what's under it, so the row would
+      // lose it as the pointer reached the × (and hide it, and get it back…).
+      readonly property bool hovered: noteHover.hovered
+      HoverHandler { id: noteHover }
       width: ListView.view.width
       height: banner.height + 6
       Rectangle {
@@ -211,10 +214,10 @@ ColumnLayout {
           anchors.fill: parent
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
+          // Closes the control center first, so the app's window gets the keyboard.
           onClicked: {
-            if (note.modelData.isActive) history.center.host.notifications.command("invokeKey", note.modelData)
-            else history.center.host.notifications.focusApp(note.modelData)
             history.center.host.view = "rest"
+            history.center.host.notifications.open(note.modelData, false)
           }
         }
         // The notification's image or app icon; the banner's accent bell
@@ -327,7 +330,7 @@ ColumnLayout {
         opacity: note.hovered ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { MotionAnimation { theme: history.center.host.theme; pace: "fade"; curve: "fade" } }
-        color: closeMouse.containsMouse ? history.center.wellHover : history.center.well
+        color: closeHover.hovered ? history.center.wellHover : history.center.well
         border.width: 1
         border.color: history.center.host.theme.fill("raised")
         Text {
@@ -337,12 +340,11 @@ ColumnLayout {
           font.family: history.center.iconFont
           font.pixelSize: history.center.host.theme.px(12)
         }
+        HoverHandler { id: closeHover; blocking: false; cursorShape: Qt.PointingHandCursor }
         MouseArea {
           id: closeMouse
           anchors.fill: parent
           anchors.margins: -3
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
           onClicked: history.center.host.notifications.dismiss(note.modelData)
         }
         Tooltip { theme: history.center.host.theme; text: "Dismiss" }

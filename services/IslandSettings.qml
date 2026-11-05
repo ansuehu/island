@@ -81,6 +81,8 @@ Item {
       property real textScale: 1
       property string controlCenterOrder: "wifi,bluetooth,focus,microphoneMute,awake,night,screenrecord,timer.timer,shelf.shelf,camera.camera,sound,microphone,game,power,keyboard,screensaver,screenshot,dictate,reminder,calendar.today,display"
       property string controlCenterHidden: "game,power,keyboard,night,microphoneMute,calendar.today"
+      // Plugin tiles (addons/plugins) shown in it, as "plugins.<plugin id>"; none until added.
+      property string controlCenterPlugins: ""
       property bool microphoneMuteControl: false
       property bool stayAwakeControl: true
       property bool screensaverControl: false

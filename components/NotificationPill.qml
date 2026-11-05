@@ -28,12 +28,12 @@ IslandPill {
     return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
   }
   // The island's own banners act on a click (see Island.qml's showBanner);
-  // any other notification opens its app.
+  // any other notification takes you to where it came from (and is dismissed).
   function clicked(mouse) {
     if (row.islandUpdate) host.updateIsland()
     else if (row.islandSetupRetry) { host.dismissFeedback(); host.setup.install() }
     // Anything else runs the sender's default action, or focuses its window.
-    else if (row.timestamp !== undefined) { host.dismissFeedback(); host.notifications.command("invokeKey", row) }
+    else if (row.timestamp !== undefined) { host.dismissFeedback(); host.notifications.open(row, true) }
     else host.dismissPillNotification()
   }
 
